@@ -2,6 +2,7 @@ import os
 import shutil
 from dotenv import load_dotenv
 import tqdm
+from modules.cleanup_processing import clean_processing_folder
 from modules.download_subtitles import download_subtitles_for_folders
 from modules.non_encora_processing import move_folders_with_ne
 from modules.encora_id_processing import find_encora_ids, process_encora_ids
@@ -49,10 +50,10 @@ if generate_cast_files:
 move_and_rename_folders(encora_data, main_directory)
 
 # Step 6: Clean up the '!processing' folder if empty
-processing_folder = os.path.join(main_directory, '!processing')
-if os.path.exists(processing_folder) and get_folder_size(processing_folder) == 0:
-    shutil.rmtree(processing_folder)
-    print(f"Deleted empty '{processing_folder}' folder")
+clean_processing_folder(main_directory)
+clean_processing_folder(main_directory)
+clean_processing_folder(main_directory)
+clean_processing_folder(main_directory)
 
 # Step 7: Evaluate file sizes
 for encora_id, folder_path in tqdm.tqdm(encora_ids, desc="Updating Encora Formats...", unit="ID"):
@@ -61,4 +62,5 @@ for encora_id, folder_path in tqdm.tqdm(encora_ids, desc="Updating Encora Format
         response = send_media_summary(encora_id, summary)
 
 # Step 8: Download subtitles
+print("Downloading subtitles...")
 download_subtitles_for_folders(main_directory)

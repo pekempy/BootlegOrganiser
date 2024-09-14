@@ -106,10 +106,8 @@ def move_and_rename_folders(encora_data, main_directory):
                         print(f"FileNotFoundError: {e}")
                 else:
                     try:
-                        if not os.path.exists(dst):
-                            shutil.move(src, dst)
-                        else:
-                            print(f"Destination file '{dst}' already exists.")
+                        # Overwrite existing file if it exists
+                        shutil.move(src, dst)
                     except FileNotFoundError as e:
                         print(f"FileNotFoundError: {e}")
             

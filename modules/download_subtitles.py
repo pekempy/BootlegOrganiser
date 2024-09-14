@@ -31,17 +31,22 @@ def download_english_subtitles(encora_id, download_directory):
         response = requests.get(subtitles_url, headers=headers)
         response.raise_for_status()
         subtitles = response.json()
+
+        # Print the response to check its structure
+        print(f"API response for Encora ID {encora_id}: {subtitles}")
         
         for subtitle in subtitles:
-            if subtitle['language'] == 'English':
+            if isinstance(subtitle, dict) and subtitle.get('language') == 'English':
                 subtitle_url = subtitle['url']
                 file_name = f"{subtitle['author'].replace(' ', '_')}.{subtitle['file_type'].lower()}"
                 file_path = os.path.join(download_directory, file_name)
 
-                # Get the size of the file
+                # Ensure the download directory exists
+                os.makedirs(download_directory, exist_ok=True)
+
+                # Download the subtitle file
                 subtitle_response = requests.get(subtitle_url, stream=True)
                 subtitle_response.raise_for_status()
-                total_size = int(subtitle_response.headers.get('content-length', 0))
                 
                 with open(file_path, 'wb') as file:
                     for chunk in subtitle_response.iter_content(chunk_size=1024):
