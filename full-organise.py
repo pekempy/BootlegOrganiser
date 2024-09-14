@@ -3,6 +3,7 @@ import shutil
 from dotenv import load_dotenv
 import tqdm
 from modules.cleanup_processing import clean_processing_folder
+from modules.collection_checker import compare_local_encora_ids
 from modules.download_subtitles import download_subtitles_for_folders
 from modules.non_encora_processing import move_folders_with_ne
 from modules.encora_id_processing import find_encora_ids, process_encora_ids
@@ -64,3 +65,18 @@ for encora_id, folder_path in tqdm.tqdm(encora_ids, desc="Updating Encora Format
 # Step 8: Download subtitles
 print("Downloading subtitles...")
 download_subtitles_for_folders(main_directory)
+
+# Step 9: Check for any missing
+missing_ids, extra_ids = compare_local_encora_ids(encora_ids)
+if missing_ids:
+    with open('missing_ids.txt', 'w') as f:
+        f.write('Missing IDs locally:\n')
+        for encora_id in missing_ids:
+            f.write(f"{encora_id}\n")
+
+# Write extra IDs to a file
+if extra_ids:
+    with open('extra_ids.txt', 'w') as f:
+        f.write('Extra IDs locally:\n')
+        for encora_id in extra_ids:
+            f.write(f"{encora_id}\n")
