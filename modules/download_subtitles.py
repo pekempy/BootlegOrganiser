@@ -33,12 +33,13 @@ def download_english_subtitles(encora_id, download_directory):
         subtitles = response.json()
 
         # Print the response to check its structure
-        print(f"API response for Encora ID {encora_id}: {subtitles}")
+        if(subtitles.length > 0):
+            print(f"API response for Encora ID {encora_id}: {subtitles}")
         
         for subtitle in subtitles:
             if isinstance(subtitle, dict) and subtitle.get('language') == 'English':
                 subtitle_url = subtitle['url']
-                file_name = f"{subtitle['author'].replace(' ', '_')}.{subtitle['file_type'].lower()}"
+                file_name = f"{subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '')}.{subtitle['file_type'].lower()}"
                 file_path = os.path.join(download_directory, file_name)
 
                 # Ensure the download directory exists
