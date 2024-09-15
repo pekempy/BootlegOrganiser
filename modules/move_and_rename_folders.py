@@ -36,10 +36,38 @@ def move_folders_to_processing(main_directory):
             if os.path.isdir(source):
                 shutil.move(source, destination)
 
+def format_date(date_info):
+    full_date = date_info.get('full_date', None)
+    
+    # If full_date is not provided, return "Unknown Year".
+    if full_date is None:
+        return 'Unknown Year'
+
+    # Extract year, month, and day from full_date ('YYYY-MM-DD').
+    year, month, day = full_date.split('-')
+
+    month_known = date_info.get('month_known', True)
+    day_known = date_info.get('day_known', True)
+    date_variant = date_info.get('date_variant', '')
+
+    # Use placeholders if month or day are not known.
+    month = '__' if not month_known else month
+    day = '__' if not day_known else day
+
+    # Format the date as 'YYYY-MM-DD' or with placeholders.
+    formatted_date = f"{year}-{month}-{day}"
+
+    # Append the date variant if it exists.
+    if date_variant:
+        formatted_date += f" ({date_variant})"
+
+    return formatted_date
+
 def format_show_folder(api_response, encora_id, format_string):
     show_name = api_response.get('show', 'Unknown Show')
     tour = api_response.get('tour', 'Unknown Tour')
-    date = api_response.get('date', {}).get('full_date', 'Unknown Date')
+    date_info = api_response.get('date', {})
+    date = format_date(date_info)
     matinee = api_response.get('matinee', '')
     nft = api_response.get('nft', {})
     nft_status = "NFT" if nft.get('nft_forever', False) else ""
@@ -59,6 +87,7 @@ def format_show_folder(api_response, encora_id, format_string):
         'master': sanitize_path(master),
         'encora_id': encora_id_str,
         'type': type_of_boot,
+        'variant': '' 
     }
     
     formatted_name = format_string.format(**format_dict)
