@@ -93,3 +93,15 @@ def create_cast_files(encora_data):
 
         # Write to Cast.txt
         write_cast_file(path, template)
+
+def create_encora_id_files(encora_data):
+    for entry in encora_data:
+        path = entry['path']
+        api_response = entry['api_response']
+        encora_id = api_response.get('id', '')
+
+        # Write to .encora_id
+        encora_id_file_path = os.path.join(path, '.encora_id')
+        with open(encora_id_file_path, 'w', encoding='utf-8') as file:
+            file.write(str(encora_id))
+    

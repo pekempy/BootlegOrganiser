@@ -7,7 +7,7 @@ from modules.collection_checker import compare_local_encora_ids
 from modules.download_subtitles import download_subtitles_for_folders
 from modules.non_encora_processing import move_folders_with_ne
 from modules.encora_id_processing import find_encora_ids, process_encora_ids
-from modules.cast_file_generator import create_cast_files
+from modules.cast_file_generator import create_cast_files, create_encora_id_files
 from modules.move_and_rename_folders import move_folders_to_processing, move_and_rename_folders
 from modules.manage_file_sizes import process_directory, send_media_summary
 
@@ -41,11 +41,16 @@ move_folders_with_ne(main_directory, non_encora_folder)
 encora_ids = find_encora_ids(main_directory)
 encora_data = process_encora_ids(encora_ids, limit=5000)  # Adjust the limit as necessary
 
-# Step 4: Generate cast files if enabled
+# Step 4: Generate cast files & .encora_id files if enabled
 generate_cast_files = os.getenv('GENERATE_CAST_FILES', 'false').lower() == 'true'
 if generate_cast_files:
     print(f"Generating cast files for {len(encora_data)} recordings")
     create_cast_files(encora_data)
+
+generate_encora_id_files = os.getenv('GENERATE_ENCORAID_FILES', 'false').lower() == 'true'
+if generate_cast_files:
+    print(f"Generating .encora_id files for {len(encora_data)} recordings")
+    create_encora_id_files(encora_data)
 
 # Step 5: Move and rename folders based on encora_data
 move_and_rename_folders(encora_data, main_directory)
