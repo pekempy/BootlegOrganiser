@@ -72,16 +72,26 @@ def format_show_folder(api_response, encora_id, format_string):
     nft = api_response.get('nft', {})
     nft_status = "NFT" if nft.get('nft_forever', False) else ""
     master = api_response.get('master', 'Unknown Master')
+    amount_recorded = api_response.get('metadata', {}).get('amount_recorded', 'Unknown').capitalize()
     type_of_boot = api_response.get('metadata', {}).get('media_type', 'Unmatched').capitalize()
     encora_id_str = f"{encora_id}"
 
     if format_string == os.getenv('SHOW_DIRECTORY_FORMAT', '{show_name}/{tour}/{type}/{folder}'):
         show_name = remove_sorting_articles(show_name)
-        
+
+    amount_recorded_mapping = {
+        'Complete': '',
+        'Highlights': 'hl',
+        'Partial': 'prt'
+    }
+    amount_recorded = amount_recorded_mapping.get(amount_recorded, '')
+
+    # Dictionary used in formatting the string
     format_dict = {
         'show_name': sanitize_path(show_name),
         'tour': sanitize_path(tour),
         'date': date,
+        'highlights': amount_recorded,
         'matinee': matinee,
         'nft': nft_status,
         'master': sanitize_path(master),
@@ -92,6 +102,7 @@ def format_show_folder(api_response, encora_id, format_string):
     
     formatted_name = format_string.format(**format_dict)
     formatted_name = formatted_name.replace('[]', '').replace('[] ', '').strip()
+    formatted_name = formatted_name.replace('{}', '').replace('{} ', '').strip()
     formatted_name = formatted_name.replace('  ', ' ').strip()
     formatted_name = formatted_name.replace('  ', ' ').strip()
 

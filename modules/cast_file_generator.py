@@ -25,6 +25,7 @@ def format_date(date_str, day_known=True, month_known=True, date_variant=None):
 def generate_template(api_response):
     show = api_response.get('show', 'Unknown Show')
     tour = api_response.get('tour', 'Unknown Tour')
+    amount_recorded = api_response.get('metadata', {}).get('amount_recorded', 'Unknown').capitalize()
     date_info = api_response.get('date', {})
     date_str = date_info.get('full_date', '')
     day_known = date_info.get('day_known', True)
@@ -34,6 +35,9 @@ def generate_template(api_response):
     date = format_date(date_str, day_known, month_known, date_variant)
     master = api_response.get('master', 'Unknown Master')
     media_type = api_response.get('metadata', {}).get('media_type', 'Unknown Media Type').capitalize()
+
+    if amount_recorded == "Complete":
+        amount_recorded = ''
 
     # Build cast list with safe checks for missing data and include cast status
     cast_entries = api_response.get('cast', [])
@@ -55,6 +59,11 @@ def generate_template(api_response):
     template = (
         f"{show} - {tour}\n"
         f"{date} - {master}\n"
+    )
+    if amount_recorded:
+        template += f"{amount_recorded} "
+
+    template +=(
         f"{media_type}\n\n"
         + (f"{nft_status}\n\n" if nft_status else "") +
         f"Cast:\n"
