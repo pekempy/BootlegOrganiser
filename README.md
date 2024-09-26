@@ -11,6 +11,14 @@ Bootleg Organiser is a Python script designed to help you organise your local fi
 - .encora-{id} files: These will be generated for use with the upcoming Encora PlexAgent
 - Cast files: Optional, These will replace any existing Cast.txt files with ones generated from Encora
 
+> [!WARNING]  
+> This will likely use a LOT of API requests, especially if updating a lot of formats, and downloading subtitles.
+>
+> - Each run of the script will fetch your collection on Encora which will use n/500 requests (where n = the number of recordings you own)
+>   - e.g. 1752 recordings / 500 = 3.5 so 4 requests will be made.
+> - Updating formats will be 1 request PER format to be updated on Encora
+> - Downloading subtitles will _always_ use 1 request per recording which has subtitles on Encora
+
 ## Installation
 
 1. Clone the Bootleg Organiser repository to your local machine.
