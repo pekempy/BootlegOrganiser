@@ -66,7 +66,8 @@ for encora_id, folder_path in tqdm.tqdm(local_ids, desc="Updating non-matching E
         response = send_format(recording_data, encora_id, summary)
 
 # Step 8: Download subtitles
-download_subtitles_for_folders(main_directory, recording_data)
+if os.getenv('REDOWNLOAD_SUBTITLES', 'false').lower() == 'true':
+    download_subtitles_for_folders(main_directory, recording_data)
 
 # Step 9: Check for any missing
 missing_ids, extra_ids = compare_local_encora_ids(local_ids)
