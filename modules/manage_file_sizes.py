@@ -2,7 +2,6 @@ import os
 import requests
 import urllib
 from dotenv import load_dotenv
-import re
 
 # Define media formats
 VIDEO_FORMATS = {
@@ -120,30 +119,32 @@ def process_directory(directory):
     summary = generate_media_summary(media_info, vob_summary)
     return summary
 
-def send_media_summary(encora_id, media_summary):
-    """Send a POST request with the Encora ID and formatted media summary."""
-    # Construct the URL
-    url = f"https://encora.it/api/collection/{encora_id}/format/{urllib.parse.quote_plus(media_summary)}"
-    url = url.replace('+', '%20')
+def send_media_summary(recording_data, encora_id, media_summary):
+    """Send a POST request with the Encora ID and formatted media summary if necessary."""
 
-    # Define headers
-    headers = {
-        'Authorization': f'Bearer {api_key}',  # Ensure api_key is defined and loaded from .env
-        'Content-Type': 'application/json'
-    }
-    
-    try:
-        # Make the POST request
-        response = requests.post(url, headers=headers)
-        response.raise_for_status()  # Raise an error for bad responses
+    # Find the matching recording from encora_data based on recording id
+    matching_recording = next((item for item in recording_data if item['encora_id'] == encora_id), None)
+
+    if matching_recording:
+        if matching_recording.get('my_format') == media_summary:
+            return
         
-        # Return the JSON response
-        return response.json()
+        # Update format if it doesn't match
+        url = f"https://encora.it/api/collection/{encora_id}/format/{urllib.parse.quote_plus(media_summary)}"
+        url = url.replace('+', '%20')
     
-    except requests.exceptions.HTTPError as err:
-        # Print the HTTP error
-        print(f"HTTP error occurred: {err}")
-    
-    except Exception as err:
-        # Print any other error
-        print(f"Other error occurred: {err}")
+        headers = {
+            'Authorization': f'Bearer {api_key}', 
+            'Content-Type': 'application/json'
+        }
+        try:
+            response = requests.post(url, headers=headers)
+            response.raise_for_status() 
+            return response.json()
+        except requests.exceptions.HTTPError as err:
+            print(f"HTTP error occurred: {err}")
+        
+        except Exception as err:
+            print(f"Other error occurred: {err}")
+    else:
+        print(f"Encora ID {encora_id} not found in encora_data.")

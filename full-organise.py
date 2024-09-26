@@ -1,12 +1,11 @@
 import os
-import shutil
 from dotenv import load_dotenv
 import tqdm
 from modules.cleanup_processing import clean_processing_folder
 from modules.collection_checker import compare_local_encora_ids
 from modules.download_subtitles import download_subtitles_for_folders
 from modules.non_encora_processing import move_folders_with_ne
-from modules.encora_id_processing import find_encora_ids, process_encora_ids
+from modules.encora_id_processing import fetch_collection, find_local_encora_ids, process_encora_ids
 from modules.cast_file_generator import create_cast_files, create_encora_id_files
 from modules.move_and_rename_folders import move_folders_to_processing, move_and_rename_folders
 from modules.manage_file_sizes import process_directory, send_media_summary
@@ -38,49 +37,49 @@ non_encora_folder = os.path.join(main_directory, '!non-encora')
 move_folders_with_ne(main_directory, non_encora_folder)
 
 # Step 3: Find Encora IDs and process them
-encora_ids = find_encora_ids(main_directory)
-encora_data = process_encora_ids(encora_ids, limit=5000)  # Adjust the limit as necessary
+local_ids = find_local_encora_ids(main_directory)
+encora_data = fetch_collection()
+recording_data = process_encora_ids(encora_data, local_ids)
 
 # Step 4: Generate cast files & .encora_id files if enabled
 generate_cast_files = os.getenv('GENERATE_CAST_FILES', 'false').lower() == 'true'
 if generate_cast_files:
-    print(f"Generating cast files for {len(encora_data)} recordings")
-    create_cast_files(encora_data)
+    print(f"Generating cast files for {len(recording_data)} recordings")
+    create_cast_files(recording_data)
 
 generate_encora_id_files = os.getenv('GENERATE_ENCORAID_FILES', 'false').lower() == 'true'
 if generate_cast_files:
-    print(f"Generating .encora_id files for {len(encora_data)} recordings")
-    create_encora_id_files(encora_data)
+    print(f"Generating .encora-id files for {len(recording_data)} recordings")
+    create_encora_id_files(recording_data)
 
 # Step 5: Move and rename folders based on encora_data
-move_and_rename_folders(encora_data, main_directory)
+move_and_rename_folders(recording_data, main_directory)
 
 # Step 6: Clean up the '!processing' folder if empty
 clean_processing_folder(main_directory)
-clean_processing_folder(main_directory)
-clean_processing_folder(main_directory)
-clean_processing_folder(main_directory)
 
 # Step 7: Evaluate file sizes
-for encora_id, folder_path in tqdm.tqdm(encora_ids, desc="Updating Encora Formats...", unit="ID"):
-    summary = process_directory(folder_path)  # Call the function from manage_file_sizes
+for encora_id, folder_path in tqdm.tqdm(local_ids, desc="Updating non-matching Encora Formats...", unit="ID"):
+    summary = process_directory(folder_path)  
     if(summary):
-        response = send_media_summary(encora_id, summary)
+        # Update encora formats _if_ the current format doesn't match what is local
+        response = send_media_summary(recording_data, encora_id, summary)
 
 # Step 8: Download subtitles
-print("Downloading subtitles...")
-download_subtitles_for_folders(main_directory)
+download_subtitles_for_folders(main_directory, recording_data)
 
 # Step 9: Check for any missing
-missing_ids, extra_ids = compare_local_encora_ids(encora_ids)
-if missing_ids:
+missing_ids, extra_ids = compare_local_encora_ids(local_ids)
+
+# Write missing IDs to a file if count > 0
+if missing_ids and len(missing_ids) > 0:
     with open('missing_ids.txt', 'w') as f:
         f.write('Missing IDs locally:\n')
         for encora_id in missing_ids:
             f.write(f"{encora_id}\n")
 
-# Write extra IDs to a file
-if extra_ids:
+# Write extra IDs to a file if count > 0
+if extra_ids and len(extra_ids) > 0:
     with open('extra_ids.txt', 'w') as f:
         f.write('Extra IDs locally:\n')
         for encora_id in extra_ids:

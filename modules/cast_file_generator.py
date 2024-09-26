@@ -22,25 +22,25 @@ def format_date(date_str, day_known=True, month_known=True, date_variant=None):
     except ValueError:
         return 'Unknown Date'
 
-def generate_template(api_response):
-    show = api_response.get('show', 'Unknown Show')
-    tour = api_response.get('tour', 'Unknown Tour')
-    amount_recorded = api_response.get('metadata', {}).get('amount_recorded', 'Unknown').capitalize()
-    date_info = api_response.get('date', {})
+def generate_template(recording_data):
+    show = recording_data.get('show', 'Unknown Show')
+    tour = recording_data.get('tour', 'Unknown Tour')
+    amount_recorded = recording_data.get('metadata', {}).get('amount_recorded', 'Unknown').capitalize()
+    date_info = recording_data.get('date', {})
     date_str = date_info.get('full_date', '')
     day_known = date_info.get('day_known', True)
     month_known = date_info.get('month_known', True)
     date_variant = date_info.get('date_variant', None)
 
     date = format_date(date_str, day_known, month_known, date_variant)
-    master = api_response.get('master', 'Unknown Master')
-    media_type = api_response.get('metadata', {}).get('media_type', 'Unknown Media Type').capitalize()
+    master = recording_data.get('master', 'Unknown Master')
+    media_type = recording_data.get('metadata', {}).get('media_type', 'Unknown Media Type').capitalize()
 
     if amount_recorded == "Complete":
         amount_recorded = ''
 
     # Build cast list with safe checks for missing data and include cast status
-    cast_entries = api_response.get('cast', [])
+    cast_entries = recording_data.get('cast', [])
     cast_list = ', '.join(
         f"{entry['performer'].get('name', 'Unknown Performer')} ({entry.get('cast_status', '')}{' ' if entry.get('cast_status') else ''}{entry['character'].get('name', 'Unknown Role')})"
         for entry in cast_entries
@@ -48,7 +48,7 @@ def generate_template(api_response):
     )
 
     # Handle NFT status
-    nft = api_response.get('nft', {})
+    nft = recording_data.get('nft', {})
     nft_status = ''
     if nft.get('nft_forever', False):
         nft_status = "NFT Forever"
@@ -69,9 +69,9 @@ def generate_template(api_response):
         f"Cast:\n"
         f"{cast_list}\n\n"
         f"Master Notes:\n"
-        f"{api_response.get('master_notes', 'No notes available.')} \n\n"
+        f"{recording_data.get('master_notes', 'No notes available.')} \n\n"
         f"Notes:\n"
-        f"{api_response.get('notes', 'No notes available.')} \n"
+        f"{recording_data.get('notes', 'No notes available.')} \n"
     )
 
     return template
@@ -86,10 +86,10 @@ def write_cast_file(path, content):
 def create_cast_files(encora_data):
     for entry in encora_data:
         path = entry['path']
-        api_response = entry['api_response']
+        recording_data = entry['recording_data']
 
         # Generate template
-        template = generate_template(api_response)
+        template = generate_template(recording_data)
 
         # Write to Cast.txt
         write_cast_file(path, template)
@@ -97,8 +97,8 @@ def create_cast_files(encora_data):
 def create_encora_id_files(encora_data):
     for entry in encora_data:
         path = entry['path']
-        api_response = entry['api_response']
-        encora_id = str(api_response.get('id', ''))
+        recording_data = entry['recording_data']
+        encora_id = str(recording_data.get('id', ''))
 
         # Create the .encora-ID file
         encora_id_file_path = os.path.join(path, f'.encora-{encora_id}')

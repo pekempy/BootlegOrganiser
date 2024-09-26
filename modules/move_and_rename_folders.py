@@ -63,17 +63,17 @@ def format_date(date_info):
 
     return formatted_date
 
-def format_show_folder(api_response, encora_id, format_string):
-    show_name = api_response.get('show', 'Unknown Show')
-    tour = api_response.get('tour', 'Unknown Tour')
-    date_info = api_response.get('date', {})
+def format_show_folder(recording_data, encora_id, format_string):
+    show_name = recording_data.get('show', 'Unknown Show')
+    tour = recording_data.get('tour', 'Unknown Tour')
+    date_info = recording_data.get('date', {})
     date = format_date(date_info)
-    matinee = api_response.get('matinee', '')
-    nft = api_response.get('nft', {})
+    matinee = recording_data.get('matinee', '')
+    nft = recording_data.get('nft', {})
     nft_status = "NFT" if nft.get('nft_forever', False) else ""
-    master = api_response.get('master', 'Unknown Master')
-    amount_recorded = api_response.get('metadata', {}).get('amount_recorded', 'Unknown').capitalize()
-    type_of_boot = api_response.get('metadata', {}).get('media_type', 'Unmatched').capitalize()
+    master = recording_data.get('master', 'Unknown Master')
+    amount_recorded = recording_data.get('metadata', {}).get('amount_recorded', 'Unknown').capitalize()
+    type_of_boot = recording_data.get('metadata', {}).get('media_type', 'Unmatched').capitalize()
     encora_id_str = f"{encora_id}"
 
     if format_string == os.getenv('SHOW_DIRECTORY_FORMAT', '{show_name}/{tour}/{type}/{folder}'):
@@ -116,11 +116,11 @@ def move_and_rename_folders(encora_data, main_directory):
 
     for entry in tqdm(encora_data, desc="Moving and Renaming Folders"):
         path = entry['path']
-        api_response = entry['api_response']
+        recording_data = entry['recording_data']
         encora_id = entry['encora_id']
         
-        show_directory = format_show_folder(api_response, encora_id, show_directory_format)
-        show_folder = format_show_folder(api_response, encora_id, show_folder_format)
+        show_directory = format_show_folder(recording_data, encora_id, show_directory_format)
+        show_folder = format_show_folder(recording_data, encora_id, show_folder_format)
 
         relative_path = os.path.relpath(path, start=processing_directory)
         old_path = os.path.join(processing_directory, relative_path)

@@ -20,9 +20,129 @@ def delete_existing_subtitles(download_directory):
             if file_name.endswith('.srt') or file_name.endswith('.ass'):
                 file_path = os.path.join(root, file_name)
                 os.remove(file_path)
-
-def download_english_subtitles(encora_id, download_directory):
-    """Download English subtitles for the given Encora ID."""
+language_code_mapping = {
+    "Abkhazian": "ab",
+    "Afar": "aa",
+    "Afrikaans": "af",
+    "Albanian": "sq",
+    "Amharic": "am",
+    "Arabic": "ar",
+    "Armenian": "hy",
+    "Assamese": "as",
+    "Avar": "av",
+    "Avestan": "ae",
+    "Aymara": "ay",
+    "Azerbaijani": "az",
+    "Bambara": "bm",
+    "Bashkir": "ba",
+    "Basque": "eu",
+    "Belarusian": "be",
+    "Bengali": "bn",
+    "Bihari": "bh",
+    "Bislama": "bi",
+    "Bosnian": "bs",
+    "Breton": "br",
+    "Bulgarian": "bg",
+    "Burmese": "my",
+    "Catalan": "ca",
+    "Chinese": "zh",
+    "Chinese (Simplified)": "zh-Hans",
+    "Chinese (Traditional)": "zh-Hant",
+    "Corsican": "co",
+    "Croatian": "hr",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "English": "en",
+    "Esperanto": "eo",
+    "Estonian": "et",
+    "Fijian": "fj",
+    "Finnish": "fi",
+    "French": "fr",
+    "Galician": "gl",
+    "Georgian": "ka",
+    "German": "de",
+    "Greek": "el",
+    "Guarani": "gn",
+    "Gujarati": "gu",
+    "Haitian": "ht",
+    "Hausa": "ha",
+    "Hebrew": "he",
+    "Hindi": "hi",
+    "Hmong": "hmn",
+    "Hungarian": "hu",
+    "Icelandic": "is",
+    "Igbo": "ig",
+    "Indonesian": "id",
+    "Interlingua": "ia",
+    "Irish": "ga",
+    "Italian": "it",
+    "Japanese": "ja",
+    "Javanese": "jw",
+    "Kazakh": "kk",
+    "Kinyarwanda": "rw",
+    "Korean": "ko",
+    "Kurdish": "ku",
+    "Kyrgyz": "ky",
+    "Lao": "lo",
+    "Latin": "la",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
+    "Luxembourgish": "lb",
+    "Macedonian": "mk",
+    "Malagasy": "mg",
+    "Malay": "ms",
+    "Malayalam": "ml",
+    "Maltese": "mt",
+    "Maori": "mi",
+    "Marathi": "mr",
+    "Mongolian": "mn",
+    "Nepali": "ne",
+    "Norwegian": "no",
+    "Odia": "or",
+    "Pashto": "ps",
+    "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Punjabi": "pa",
+    "Quechua": "qu",
+    "Romanian": "ro",
+    "Russian": "ru",
+    "Samoan": "sm",
+    "Sanskrit": "sa",
+    "Scots Gaelic": "gd",
+    "Serbian": "sr",
+    "Sesotho": "st",
+    "Shona": "sn",
+    "Sindhi": "sd",
+    "Sinhalese": "si",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Somali": "so",
+    "Spanish": "es",
+    "Sundanese": "su",
+    "Swahili": "sw",
+    "Swedish": "sv",
+    "Tajik": "tg",
+    "Tamil": "ta",
+    "Tatar": "tt",
+    "Telugu": "te",
+    "Thai": "th",
+    "Turkish": "tr",
+    "Turkmen": "tk",
+    "Uighur": "ug",
+    "Ukrainian": "uk",
+    "Urdu": "ur",
+    "Uzbek": "uz",
+    "Vietnamese": "vi",
+    "Welsh": "cy",
+    "Xhosa": "xh",
+    "Yiddish": "yi",
+    "Yoruba": "yo",
+    "Zulu": "zu",
+}
+def download_all_subtitles(encora_id, download_directory):
+    """Download subtitles for the given Encora ID."""
     subtitles_url = f"https://encora.it/api/recording/{encora_id}/subtitles"
     headers = {'Authorization': f'Bearer {api_key}'}
     
@@ -32,13 +152,12 @@ def download_english_subtitles(encora_id, download_directory):
         response = requests.get(subtitles_url, headers=headers)
         response.raise_for_status()
         subtitles = response.json()
-        
-        # Filter English subtitles
-        english_subtitles = [subtitle for subtitle in subtitles if isinstance(subtitle, dict) and subtitle.get('language') == 'English']
-        
-        for subtitle in english_subtitles:
+
+        for subtitle in subtitles:
             subtitle_url = subtitle['url']
-            file_name = f"{subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '').replace(':', '-')}.{subtitle['file_type'].lower()}"
+            # Get the ISO language code from the mapping
+            lang_code = language_code_mapping.get(subtitle['language'], subtitle['language'][:2].lower())
+            file_name = f"{subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '').replace(':', '-')}.{lang_code}.{subtitle['file_type'].lower()}"
             file_path = os.path.join(download_directory, file_name)
 
             # Ensure the download directory exists
@@ -55,8 +174,8 @@ def download_english_subtitles(encora_id, download_directory):
     except requests.exceptions.RequestException as e:
         print(f"Error downloading subtitles: {e}")
 
-def download_subtitles_for_folders(main_directory):
-    """Recursively download English subtitles for all folders in the main directory."""
+def download_subtitles_for_folders(main_directory, recording_data):
+    """Recursively download subtitles for all folders in the main directory."""
     
     # Get all directories to process
     all_folders = []
@@ -65,8 +184,12 @@ def download_subtitles_for_folders(main_directory):
             all_folders.append(os.path.join(root, folder_name))
 
     # Use tqdm to show progress
-    for folder_path in tqdm(all_folders, desc="Checking folders for subtitles"):
+    for folder_path in tqdm(all_folders, desc="Downloading missing subtitles from Encora"):
         encora_id = get_encora_id_from_folder(os.path.basename(folder_path))
         
         if encora_id:
-            download_english_subtitles(encora_id, folder_path)
+            # Find the recording entry that matches the encora_id
+            matching_recording = next((item for item in recording_data if item['encora_id'] == encora_id), None)
+            
+            if matching_recording and matching_recording.get('recording_data', {}).get('metadata', {}).get('has_subtitles', False):
+                download_all_subtitles(encora_id, folder_path)
