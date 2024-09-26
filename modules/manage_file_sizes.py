@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import urllib
 from dotenv import load_dotenv
@@ -119,7 +120,7 @@ def process_directory(directory):
     summary = generate_media_summary(media_info, vob_summary)
     return summary
 
-def send_media_summary(recording_data, encora_id, media_summary):
+def send_format(recording_data, encora_id, media_summary):
     """Send a POST request with the Encora ID and formatted media summary if necessary."""
 
     # Find the matching recording from encora_data based on recording id
@@ -137,10 +138,19 @@ def send_media_summary(recording_data, encora_id, media_summary):
             'Authorization': f'Bearer {api_key}', 
             'Content-Type': 'application/json'
         }
+        
         try:
             response = requests.post(url, headers=headers)
+            
+            # Check Rate Limit Header
+            if response.headers.get('x-RateLimit-Remaining') == '0':
+                print("Rate limit reached. Waiting for 1 minute...")
+                time.sleep(60)  # Wait for 60 seconds before retrying
+                response = requests.post(url, headers=headers)  # Retry the request
+            
             response.raise_for_status() 
             return response.json()
+        
         except requests.exceptions.HTTPError as err:
             print(f"HTTP error occurred: {err}")
         

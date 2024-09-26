@@ -3,6 +3,7 @@ import requests
 from tqdm import tqdm
 from dotenv import load_dotenv
 import re
+import time
 
 # Load environment variables from .env
 load_dotenv()
@@ -20,6 +21,7 @@ def delete_existing_subtitles(download_directory):
             if file_name.endswith('.srt') or file_name.endswith('.ass'):
                 file_path = os.path.join(root, file_name)
                 os.remove(file_path)
+
 language_code_mapping = {
     "Abkhazian": "ab",
     "Afar": "aa",
@@ -141,6 +143,7 @@ language_code_mapping = {
     "Yoruba": "yo",
     "Zulu": "zu",
 }
+
 def download_all_subtitles(encora_id, download_directory):
     """Download subtitles for the given Encora ID."""
     subtitles_url = f"https://encora.it/api/recording/{encora_id}/subtitles"
@@ -151,6 +154,12 @@ def download_all_subtitles(encora_id, download_directory):
 
         response = requests.get(subtitles_url, headers=headers)
         response.raise_for_status()
+        
+        # Check rate limit header
+        if response.headers.get('x-RateLimit-Remaining') == '0':
+            print("Rate limit reached. Waiting for 1 minute...")
+            time.sleep(60)  # Wait for 1 minute
+        
         subtitles = response.json()
 
         for subtitle in subtitles:

@@ -8,7 +8,7 @@ from modules.non_encora_processing import move_folders_with_ne
 from modules.encora_id_processing import fetch_collection, find_local_encora_ids, process_encora_ids
 from modules.cast_file_generator import create_cast_files, create_encora_id_files
 from modules.move_and_rename_folders import move_folders_to_processing, move_and_rename_folders
-from modules.manage_file_sizes import process_directory, send_media_summary
+from modules.manage_file_sizes import process_directory, send_format
 
 # Load environment variables from .env
 load_dotenv()
@@ -63,7 +63,7 @@ for encora_id, folder_path in tqdm.tqdm(local_ids, desc="Updating non-matching E
     summary = process_directory(folder_path)  
     if(summary):
         # Update encora formats _if_ the current format doesn't match what is local
-        response = send_media_summary(recording_data, encora_id, summary)
+        response = send_format(recording_data, encora_id, summary)
 
 # Step 8: Download subtitles
 download_subtitles_for_folders(main_directory, recording_data)
