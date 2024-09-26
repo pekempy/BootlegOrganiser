@@ -19,6 +19,8 @@ Bootleg Organiser is a Python script designed to help you organise your local fi
 > - Updating formats will be 1 request PER format to be updated on Encora
 > - Downloading subtitles will _always_ use 1 request per recording which has subtitles on Encora
 
+The script is configured to handle API request limits for format updating & subtitle downloading, though this is untested.
+
 ## Installation
 
 1. Clone the Bootleg Organiser repository to your local machine.
