@@ -68,7 +68,7 @@ def format_show_folder(recording_data, encora_id, format_string):
     tour = recording_data.get('tour', 'Unknown Tour')
     date_info = recording_data.get('date', {})
     date = format_date(date_info)
-    matinee = recording_data.get('matinee', '')
+    matinee = recording_data.get('date', {}).get('time', '')
     nft = recording_data.get('nft', {})
     nft_status = "NFT" if nft.get('nft_forever', False) else ""
     master = recording_data.get('master', 'Unknown Master')
@@ -86,6 +86,12 @@ def format_show_folder(recording_data, encora_id, format_string):
     }
     amount_recorded = amount_recorded_mapping.get(amount_recorded, '')
 
+    matinee_mapping = {
+        'matinee': 'm',
+        'evening': ''
+    }
+    matinee = matinee_mapping.get(matinee.lower(), '')
+    
     # Dictionary used in formatting the string
     format_dict = {
         'show_name': sanitize_path(show_name),
