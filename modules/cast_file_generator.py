@@ -77,9 +77,14 @@ def generate_template(recording_data):
     return template
 
 def write_cast_file(path, content):
-    cast_file_path = os.path.join(path, 'Cast.txt')    
+    cast_file_path = os.path.join(path, 'Cast.txt')
+    # Check if the file exists and read its content
     if os.path.exists(cast_file_path):
-        os.remove(cast_file_path)
+        with open(cast_file_path, 'r', encoding='utf-8') as file:
+            existing_content = file.read()
+        # Only proceed if the new content is different from the existing content
+        if content == existing_content:
+            return
     with open(cast_file_path, 'w', encoding='utf-8') as file:
         file.write(content)
 
@@ -87,10 +92,8 @@ def create_cast_files(encora_data):
     for entry in encora_data:
         path = entry['path']
         recording_data = entry['recording_data']
-
         # Generate template
         template = generate_template(recording_data)
-
         # Write to Cast.txt
         write_cast_file(path, template)
 
@@ -99,9 +102,8 @@ def create_encora_id_files(encora_data):
         path = entry['path']
         recording_data = entry['recording_data']
         encora_id = str(recording_data.get('id', ''))
-
         # Create the .encora-ID file
         encora_id_file_path = os.path.join(path, f'.encora-{encora_id}')
         with open(encora_id_file_path, 'w', encoding='utf-8'):
-            pass  # Create an empty file
+            pass  
     
