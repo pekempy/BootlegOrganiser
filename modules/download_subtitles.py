@@ -1,3 +1,4 @@
+import hashlib
 import os
 import requests
 from tqdm import tqdm
@@ -13,14 +14,6 @@ def get_encora_id_from_folder(folder_name):
     """Extract Encora ID from the folder name."""
     match = re.search(r'\{e-(\d+)\}', folder_name)
     return match.group(1) if match else None
-
-def delete_existing_subtitles(download_directory):
-    """Delete existing .srt or .ass subtitle files in the download directory."""
-    for root, dirs, files in os.walk(download_directory):
-        for file_name in files:
-            if file_name.endswith('.srt') or file_name.endswith('.ass'):
-                file_path = os.path.join(root, file_name)
-                os.remove(file_path)
 
 language_code_mapping = {
     "Abkhazian": "ab",
@@ -144,14 +137,20 @@ language_code_mapping = {
     "Zulu": "zu",
 }
 
+def file_content_hash(file_path):
+    """Calculate the SHA-256 hash of the file content."""
+    sha256 = hashlib.sha256()
+    with open(file_path, 'rb') as file:
+        for chunk in iter(lambda: file.read(4096), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
+
 def download_all_subtitles(encora_id, download_directory):
     """Download subtitles for the given Encora ID."""
     subtitles_url = f"https://encora.it/api/recording/{encora_id}/subtitles"
     headers = {'Authorization': f'Bearer {api_key}'}
     
     try:
-        delete_existing_subtitles(download_directory)
-
         response = requests.get(subtitles_url, headers=headers)
         response.raise_for_status()
         
@@ -175,10 +174,22 @@ def download_all_subtitles(encora_id, download_directory):
             # Download the subtitle file
             subtitle_response = requests.get(subtitle_url, stream=True)
             subtitle_response.raise_for_status()
-            
+
+            # Calculate the hash of the new content
+            new_content_hash = hashlib.sha256()
+            new_content = subtitle_response.content
+            new_content_hash.update(new_content)
+            new_content_hash = new_content_hash.hexdigest()
+
+            # Check if the file exists and compare the content
+            if os.path.exists(file_path):
+                existing_content_hash = file_content_hash(file_path)
+                if existing_content_hash == new_content_hash:
+                    continue  # Skip writing the file if the content is the same
+
+            # Write the new content to the file
             with open(file_path, 'wb') as file:
-                for chunk in subtitle_response.iter_content(chunk_size=1024):
-                    file.write(chunk)
+                file.write(new_content)
                 
     except requests.exceptions.RequestException as e:
         print(f"Error downloading subtitles: {e}")
