@@ -102,8 +102,11 @@ def create_encora_id_files(encora_data):
         path = entry['path']
         recording_data = entry['recording_data']
         encora_id = str(recording_data.get('id', ''))
-        # Create the .encora-ID file
         encora_id_file_path = os.path.join(path, f'.encora-{encora_id}')
-        with open(encora_id_file_path, 'w', encoding='utf-8'):
-            pass  
+        
+        # Check if the file already exists
+        if not os.path.exists(encora_id_file_path):
+            # Create an empty .encora-ID file
+            with open(encora_id_file_path, 'w', encoding='utf-8'):
+                pass
     
