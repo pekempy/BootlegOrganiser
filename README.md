@@ -2,6 +2,8 @@
 
 Bootleg Organiser is a Python script designed to help you organise your local files, update Encora, and ensure that your local data is kept up to date with Encora.
 
+A useful thing I have found is after trading for a new recording, I can throw the folder into the directory specified in the `.env` file, and just name it `{e-######}` for the Encora ID, run the script and it sorts everything for me, including the format on Encora (However it does need manually collecting first).
+
 ## Features
 
 - File Organisation: Bootleg Organiser scans your specified directories and organises your files based on customizable rules.
@@ -10,6 +12,8 @@ Bootleg Organiser is a Python script designed to help you organise your local fi
 - Subtitle Downloads: Optional, Bootleg Organiser will _remove any local subtitles_ and replace them with ones from Encora.
 - .encora-{id} files: These will be generated for use with the upcoming Encora PlexAgent
 - Cast files: Optional, These will replace any existing Cast.txt files with ones generated from Encora
+- Generates `missing_ids.txt` which is IDs you have collected on Encora but _not_ in your local folders
+- Generates `extra_ids.txt` which is IDs you have in your folders, but _not_ on Encora
 
 > [!WARNING]  
 > This will likely use a LOT of API requests, especially if updating a lot of formats, and downloading subtitles.
@@ -19,7 +23,19 @@ Bootleg Organiser is a Python script designed to help you organise your local fi
 > - Updating formats will be 1 request PER format to be updated on Encora
 > - Downloading subtitles will _always_ use 1 request per recording which has subtitles on Encora
 
-The script is configured to handle API request limits for format updating & subtitle downloading, though this is untested.
+The script is configured to handle API request limits for format updating & subtitle downloading, though this is untested.c
+
+<details>
+  <summary>Example output folder structure:</summary>
+
+This is with the following .env formats:  
+ `SHOW_DIRECTORY_FORMAT="{show_name}/{tour}/{type}/"`
+
+`SHOW_FOLDER_FORMAT="[{date}] {highlights} [{matinee}] [{nft}] {show_name} ~ {master} {{e-{encora_id}}}"`
+
+![Example output](example_output.png)
+
+</details>
 
 ## Installation
 
