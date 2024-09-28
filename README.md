@@ -16,14 +16,14 @@ A useful thing I have found is after trading for a new recording, I can throw th
 - Generates `extra_ids.txt` which is IDs you have in your folders, but _not_ on Encora
 
 > [!WARNING]  
-> This will likely use a LOT of API requests, especially if updating a lot of formats, and downloading subtitles.
+> This will likely use a LOT of API requests, especially if updating a lot of formats.
 >
 > - Each run of the script will fetch your collection on Encora which will use n/500 requests (where n = the number of recordings you own)
 >   - e.g. 1752 recordings / 500 = 3.5 so 4 requests will be made.
-> - Updating formats will be 1 request PER format to be updated on Encora
-> - Downloading subtitles will _always_ use 1 request per recording which has subtitles on Encora
+> - Updating formats will be 1 request PER format to be updated on Encora. It will not use an API request if the format on Encora is the same as you have locally, but will if you upgrade your files.
+> - Downloading subtitles has been optimised to use 1 request to fetch all required subtitles.
 
-The script is configured to handle API request limits for format updating & subtitle downloading, though this is untested.c
+The script is configured to handle API request limits and wait for it to expire if the limit is reached, though this is untested.
 
 <details>
   <summary>Example output folder structure:</summary>
