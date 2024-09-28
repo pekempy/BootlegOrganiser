@@ -16,7 +16,8 @@ A useful thing I have found is after trading for a new recording, I can throw th
 - Generates `extra_ids.txt` which is IDs you have in your folders, but _not_ on Encora
 
 > [!WARNING]  
-> This will likely use a LOT of API requests, especially if updating a lot of formats.
+> This will likely use a LOT of API requests on the first run, especially if updating a lot of formats.
+> Subsequent runs should use less as your formats will already match.
 >
 > - Each run of the script will fetch your collection on Encora which will use n/500 requests (where n = the number of recordings you own)
 >   - e.g. 1752 recordings / 500 = 3.5 so 4 requests will be made.
