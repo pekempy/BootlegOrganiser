@@ -14,7 +14,7 @@ def fetch_encora_collection():
     collection = []
     page = 1
     while True:
-        response = requests.get(f"{base_url}?page={page}", headers={"Authorization": f"Bearer {api_key}"})
+        response = requests.get(f"{base_url}?page={page}", headers={"Authorization": f"Bearer {api_key}", "User-Agent": "BootOrganiser"})
         if response.status_code != 200:
             raise Exception(f"Failed to fetch collection page {page}: {response.status_code}")
         

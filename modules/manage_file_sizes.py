@@ -136,7 +136,8 @@ def send_format(recording_data, encora_id, media_summary):
     
         headers = {
             'Authorization': f'Bearer {api_key}', 
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json', 
+            "User-Agent": "BootOrganiser"
         }
         
         try:

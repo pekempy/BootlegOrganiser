@@ -41,7 +41,8 @@ def find_local_encora_ids(main_directory):
 def fetch_collection():
     base_url = "https://encora.it/api/collection"
     headers = {
-        'Authorization': f'Bearer {api_key}'
+        'Authorization': f'Bearer {api_key}', 
+        "User-Agent": "BootOrganiser"
     }
     all_recordings = []
     current_page = 1

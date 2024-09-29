@@ -147,7 +147,7 @@ language_code_mapping = {
 def download_all_subtitles(encora_id, download_directory):
     """Download subtitles for the given Encora ID."""
     subtitles_url = f"https://encora.it/api/recording/{encora_id}/subtitles"
-    headers = {'Authorization': f'Bearer {api_key}'}
+    headers = {'Authorization': f'Bearer {api_key}', "User-Agent": "BootOrganiser"}
     
     try:
         delete_existing_subtitles(download_directory)
