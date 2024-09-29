@@ -42,12 +42,12 @@ def fetch_collection():
     base_url = "https://encora.it/api/collection"
     headers = {
         'Authorization': f'Bearer {api_key}', 
-        "User-Agent": "BootOrganiser"
+        'User-Agent': 'BootOrganiser'
     }
     all_recordings = []
     current_page = 1
     retries = 3
-    timeout = 10
+    timeout = 30
 
     while True:
         try:

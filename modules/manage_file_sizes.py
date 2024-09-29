@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 # Define media formats
 VIDEO_FORMATS = {
-    '.avi', '.divx', '.m2t', '.m2ts', '.mp4', 'm4v', '.mpeg', '.mpg', '.mts', '.mov', 
+    '.avi', '.divx', '.m2t', '.m2ts', '.mp4', '.m4v', '.mpeg', '.mpg', '.mts', '.mov', 
     '.mkv', '.vob', '.ts', '.wmv'
 }
 AUDIO_FORMATS = {
