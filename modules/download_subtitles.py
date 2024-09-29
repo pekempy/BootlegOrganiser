@@ -173,7 +173,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
                 subtitles_by_recording_id[recording_id] = []
             subtitles_by_recording_id[recording_id].append(subtitle)
 
-        for recording_id, folder_path in tqdm(recording_ids_with_subtitles, desc="Downloading subtitles"):
+        for recording_id, folder_path in tqdm(recording_ids_with_subtitles, desc="Downloading non-matching subtitles"):
             if recording_id in subtitles_by_recording_id:
                 subtitles = subtitles_by_recording_id[recording_id]
                 download_directory = folder_path
