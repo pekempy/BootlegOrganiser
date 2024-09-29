@@ -152,7 +152,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
     ids_str = ','.join(recording_ids)
     
     subtitles_url = f"https://encora.it/api/subtitles/{ids_str}"
-    headers = {'Authorization': f'Bearer {api_key}'}
+    headers = {'Authorization': f'Bearer {api_key}', "User-Agent": "BootOrganiser"}
     
     try:
         response = requests.get(subtitles_url, headers=headers)
