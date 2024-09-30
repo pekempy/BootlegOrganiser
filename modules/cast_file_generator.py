@@ -42,7 +42,7 @@ def generate_template(recording_data):
     # Build cast list with safe checks for missing data and include cast status
     cast_entries = recording_data.get('cast', [])
     cast_list = ', '.join(
-        f"{entry['performer'].get('name', 'Unknown Performer')} ({entry.get('cast_status', '')}{' ' if entry.get('cast_status') else ''}{entry['character'].get('name', 'Unknown Role')})"
+        f"{entry['performer'].get('name', 'Unknown Performer')} ({entry.get('status', {}).get('abbreviation', '') if entry.get('status') else ''}{' ' if entry.get('status') and entry['status'].get('abbreviation', '') else ''}{entry['character'].get('name', 'Unknown Role')})"
         for entry in cast_entries
         if entry.get('performer') and entry.get('character')
     )
@@ -68,11 +68,24 @@ def generate_template(recording_data):
         + (f"{nft_status}\n\n" if nft_status else "") +
         f"Cast:\n"
         f"{cast_list}\n\n"
-        f"Master Notes:\n"
-        f"{recording_data.get('master_notes', 'No notes available.')} \n\n"
-        f"Notes:\n"
-        f"{recording_data.get('notes', 'No notes available.')} \n"
     )
+    master_notes = recording_data.get('master_notes')
+    if master_notes:
+        master_notes = master_notes.strip()
+        if master_notes:
+            template += (
+                f"Master Notes:\n"
+                f"{master_notes}\n\n"
+            )
+
+    notes = recording_data.get('notes')
+    if notes:
+        notes = notes.strip()
+        if notes:
+            template += (
+                f"Notes:\n"
+                f"{notes}\n"
+            )
 
     return template
 
