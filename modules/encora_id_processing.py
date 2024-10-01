@@ -49,11 +49,13 @@ def fetch_collection():
     retries = 3
     timeout = 30
 
+    page_size = os.getenv('COLLECTION_PAGE_SIZE')
+
     while True:
         try:
             print(f"Fetching page {current_page}...")
             # Attempt the request with a timeout
-            response = requests.get(f"{base_url}?page={current_page}", headers=headers, timeout=timeout)
+            response = requests.get(f"{base_url}?per_page={page_size}&page={current_page}", headers=headers, timeout=timeout)
             response.raise_for_status()  # Raise an error for bad status codes (e.g. 4xx, 5xx)
             data = response.json()
 

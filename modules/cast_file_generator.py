@@ -1,5 +1,11 @@
 import os
+import re
 from datetime import datetime
+
+def strip_html_tags(text):
+    """Remove HTML tags from a string."""
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text)
 
 def format_date(date_str, day_known=True, month_known=True, date_variant=None):
     """Format date based on known day, month, and variant."""
@@ -72,6 +78,7 @@ def generate_template(recording_data):
     master_notes = recording_data.get('master_notes')
     if master_notes:
         master_notes = master_notes.strip()
+        master_notes = strip_html_tags(master_notes)
         if master_notes:
             template += (
                 f"Master Notes:\n"
@@ -81,6 +88,7 @@ def generate_template(recording_data):
     notes = recording_data.get('notes')
     if notes:
         notes = notes.strip()
+        notes = strip_html_tags(notes)
         if notes:
             template += (
                 f"Notes:\n"
