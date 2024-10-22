@@ -6,7 +6,8 @@ A useful thing I have found is after trading for a new recording, I can throw th
 
 ## Features
 
-- File Organisation: Bootleg Organiser scans your specified directories and organises your files based on customizable rules.
+- File Organisation: Bootleg Organiser scans your specified directories and organises your files based on customisable rules.
+- Auto-Collecting: Will automatically collect a recording on Encora if an ID is found in your folder.
 - Encora Update: Bootleg Organiser automatically updates your Encora formats with the latest files from your local storage.
 - Data Synchronization: Bootleg Organiser ensures that your local data is always synchronized with Encora, keeping everything up to date.
 - Subtitle Downloads: Optional, Bootleg Organiser will _remove any local subtitles_ and replace them with ones from Encora.
@@ -51,12 +52,12 @@ This is with the following .env formats:
 > Any Encora recordings should have `{e-#####}` as part of the folder name to match them to Encora recordings. E.g. `Murder Ballad West End {e-1118317}`
 
 1. Specify the directories you want to organise in the `.env` file.
-2. Customize the file organisation rules according to your preferences.
+2. Customise the file organisation rules according to your preferences.
 3. Run the script to start organising your files and updating Encora.
 
 ## Configuration
 
-Bootleg Organiser uses a `.env` file for configuration. You can customize various settings, including:
+Bootleg Organiser uses a `.env` file for configuration. You can customise various settings, including:
 
 - Directories to organise
 - File organisation rules

@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import requests
 from tqdm import tqdm
 from dotenv import load_dotenv
@@ -19,8 +20,8 @@ def find_local_encora_ids(main_directory):
     encora_ids = []
     total_folders = sum([len(dirs) for _, dirs, _ in os.walk(main_directory)])  # Count total subfolders
     
-    # Loop through all subfolders in main_directory with a progress bar
-    for root, dirs, _ in tqdm(os.walk(main_directory), total=total_folders, desc="Processing Folders"):
+    # Loop through all subfolders in main_directory
+    for root, dirs, _ in os.walk(main_directory):
         for dir_name in dirs:
             # Search for Encora ID in the folder name
             match = id_pattern.search(dir_name)
@@ -53,7 +54,6 @@ def fetch_collection():
 
     while True:
         try:
-            print(f"Fetching page {current_page}...")
             # Attempt the request with a timeout
             response = requests.get(f"{base_url}?per_page={page_size}&page={current_page}", headers=headers, timeout=timeout)
             response.raise_for_status()  # Raise an error for bad status codes (e.g. 4xx, 5xx)
@@ -100,7 +100,26 @@ def process_encora_ids(encora_data, local_ids):
                 'recording_data': matching_recording.get('recording', {}),
                 'my_format': matching_recording['format']
             })
-        else:
-            print(f"No matching recording found for Encora ID {encora_id} in {path}")
+        else:            
+            headers = {
+                'Authorization': f'Bearer {api_key}', 
+                'Content-Type': 'application/json', 
+                "User-Agent": "BootOrganiser"
+            }
+            # collect the recording on Encora before adding the format:
+            url = f"https://encora.it/api/collection/{encora_id}/collect"
+            try:
+                response = requests.post(url, headers=headers)
+            
+                # Check Rate Limit Header
+                if response.headers.get('x-RateLimit-Remaining') == '0':
+                    print("\nRate limit reached. Waiting for 1 minute...")
+                    time.sleep(60)  # Wait for 60 seconds before retrying
+                    response = requests.post(url, headers=headers)  # Retry the request
+                
+                response.raise_for_status() 
+
+            except requests.exceptions.HTTPError as err:
+                print(f"HTTP error occurred: {err}")
 
     return results

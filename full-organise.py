@@ -37,6 +37,8 @@ non_encora_folder = os.path.join(main_directory, '!non-encora')
 move_folders_with_ne(main_directory, non_encora_folder)
 
 # Step 3: Find Encora IDs and process them
+print('Starting script...')
+print('This may take some time to fetch your collection from Encora...')
 local_ids = find_local_encora_ids(main_directory)
 encora_data = fetch_collection()
 recording_data = process_encora_ids(encora_data, local_ids)
