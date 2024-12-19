@@ -111,11 +111,10 @@ def generate_media_summary(aggregated_info, vob_summary):
     
     # Combine the summary into a single string
     media_summary = " | ".join(summary)
-    
     return media_summary
 
 def process_directory(directory):
-    #directory = directory.replace('!processing\\', '')
+    directory = directory.replace('!processing\\', '')
     media_info = evaluate_media_files(directory)
     vob_summary = generate_vob_summary(directory)
     summary = generate_media_summary(media_info, vob_summary)
