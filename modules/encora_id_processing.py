@@ -61,6 +61,9 @@ def fetch_collection():
 
             # Append all recording data from the current page
             all_recordings.extend(data['data'])
+
+            # Print the current page and the number of recordings collected so far
+            print(f"\rPage: {current_page}, Recordings Loaded: {len(all_recordings)}", end='')
             
             # If there's no next page, break the loop
             if data['next_page_url'] is None:

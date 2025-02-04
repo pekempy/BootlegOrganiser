@@ -25,6 +25,6 @@ def move_folders_with_ne(main_directory, non_encora_folder):
                 if not folder_exists_in_non_encora(dir_name, non_encora_folder):
                     # Move the folder to '!non-encora'
                     shutil.move(folder_path, dest_path)
-                    print(f"Moved folder: {folder_path} to {dest_path}")
+                    print(f"Moved Non-Encora recording from {folder_path} to {dest_path}")
                 else:
                     continue
