@@ -1,4 +1,6 @@
 .env
 *.pyc
-extra_ids.txt
-missing_ids.txt
+on_encora_not_local.txt
+on_encora_not_local_details.csv
+local_not_on_encora.txt
+local_not_on_encora_details.csv

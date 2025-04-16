@@ -64,6 +64,7 @@ clean_processing_folder(main_directory)
 for encora_id, folder_path in tqdm.tqdm(local_ids, desc="Updating non-matching Encora Formats...", unit="ID"):
     summary = process_directory(folder_path)  
     if(summary):
+        print(summary)
         # Update encora formats _if_ the current format doesn't match what is local
         response = send_format(recording_data, encora_id, summary)
 
@@ -76,14 +77,14 @@ missing_ids, extra_ids = compare_local_encora_ids(local_ids)
 
 # Write missing IDs to a file if count > 0
 if missing_ids and len(missing_ids) > 0:
-    with open('missing_ids.txt', 'w') as f:
+    with open('on_encora_not_local.txt', 'w') as f:
         f.write('Missing IDs locally:\n')
         for encora_id in missing_ids:
             f.write(f"{encora_id}\n")
 
 # Write extra IDs to a file if count > 0
 if extra_ids and len(extra_ids) > 0:
-    with open('extra_ids.txt', 'w') as f:
+    with open('local_not_on_encora.txt', 'w') as f:
         f.write('Extra IDs locally:\n')
         for encora_id in extra_ids:
             f.write(f"{encora_id}\n")
