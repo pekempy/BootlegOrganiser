@@ -122,7 +122,49 @@ def process_encora_ids(encora_data, local_ids):
                 
                 response.raise_for_status() 
 
+                # Appends the data of a single recording into encora_data
+                fetched_recording = fetch_single_recording(encora_id)
+                if fetched_recording:
+                    encora_data.append({'recording': fetched_recording, 'format': ""})
+                    results.append({
+                        'encora_id': encora_id,
+                        'path': path,
+                        'recording_data': fetched_recording,
+                        'my_format': ""
+                    })
+                else:
+                    print(f"Failed to fetch recording {encora_id} after collecting.")
+                    
             except requests.exceptions.HTTPError as err:
                 print(f"HTTP error occurred: {err}")
 
     return results
+
+# Gathers the data from a single recording
+def fetch_single_recording(encora_id):
+    base_url = "https://encora.it/api/recording"
+    headers = {
+        'Authorization': f'Bearer {api_key}', 
+        'User-Agent': 'BootOrganiser'
+    }
+    retries = 3
+    timeout = 30
+
+    for attempt in range(retries):
+        try:
+            response = requests.get(f"{base_url}/{encora_id}", headers=headers, timeout=timeout)
+            response.raise_for_status()
+
+            recording_json = response.json()
+
+            if 'id' in recording_json:
+                return recording_json
+            else:
+                print(f"No valid recording ID found yet (attempt {attempt + 1}/{retries})...")
+                time.sleep(2)
+        except requests.exceptions.RequestException as e:
+            print(f"Request error: {e}")
+            time.sleep(2)
+
+    print(f"Failed to fetch recording {encora_id} after {retries} retries.")
+    return None
