@@ -54,19 +54,19 @@ if generate_encora_id_files:
     print(f"Generating .encora-id files for {len(recording_data)} recordings")
     create_encora_id_files(recording_data)
 
-# Step 5: Move and rename folders based on encora_data
-move_and_rename_folders(recording_data, main_directory)
-
-# Step 6: Clean up the '!processing' folder if empty
-clean_processing_folder(main_directory)
-
-# Step 7: Evaluate file sizes
+# Step 5: Evaluate file sizes
 for encora_id, folder_path in tqdm.tqdm(local_ids, desc="Updating non-matching Encora Formats...", unit="ID"):
     summary = process_directory(folder_path)  
     if(summary):
         print(summary)
         # Update encora formats _if_ the current format doesn't match what is local
         response = send_format(recording_data, encora_id, summary)
+
+# Step 6: Move and rename folders based on encora_data
+move_and_rename_folders(recording_data, main_directory)
+
+# Step 7: Clean up the '!processing' folder if empty
+clean_processing_folder(main_directory)
 
 # Step 8: Download subtitles
 if os.getenv('REDOWNLOAD_SUBTITLES', 'false').lower() == 'true':
