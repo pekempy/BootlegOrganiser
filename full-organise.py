@@ -50,7 +50,7 @@ if generate_cast_files:
     create_cast_files(recording_data)
 
 generate_encora_id_files = os.getenv('GENERATE_ENCORAID_FILES', 'false').lower() == 'true'
-if generate_cast_files:
+if generate_encora_id_files:
     print(f"Generating .encora-id files for {len(recording_data)} recordings")
     create_encora_id_files(recording_data)
 
