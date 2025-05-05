@@ -58,7 +58,6 @@ if generate_encora_id_files:
 for encora_id, folder_path in tqdm.tqdm(local_ids, desc="Updating non-matching Encora Formats...", unit="ID"):
     summary = process_directory(folder_path)  
     if(summary):
-        print(summary)
         # Update encora formats _if_ the current format doesn't match what is local
         response = send_format(recording_data, encora_id, summary)
 
