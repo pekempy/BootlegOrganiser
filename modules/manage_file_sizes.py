@@ -11,7 +11,7 @@ VIDEO_FORMATS = {
     '.mkv', '.vob', '.ts', '.wmv'
 }
 AUDIO_FORMATS = {
-    '.mp3', '.m4a', '.wav', '.flac', '.aiff', 'm4b', '.alac', '.aac'
+    '.mp3', '.m4a', '.wav', '.flac', '.aiff', '.m4b', '.alac', '.aac'
 }
 
 load_dotenv()
