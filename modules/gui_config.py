@@ -238,6 +238,15 @@ class ConfigGUI:
         self.root.option_add("*TCombobox*Listbox.foreground", TEXT_COLOUR)
         self.root.option_add("*TCombobox*Listbox.selectBackground", ACCENT_BLUE)
         self.root.option_add("*TCombobox*Listbox.selectForeground", "white")
+        
+        # Force global button styling to prevent OS overrides
+        self.root.option_add("*Button.background", BG_COLOUR)
+        self.root.option_add("*Button.foreground", TEXT_COLOUR)
+        self.root.option_add("*Button.activeBackground", BORDER_COLOUR)
+        self.root.option_add("*Button.activeForeground", TEXT_COLOUR)
+        self.root.option_add("*Button.borderWidth", "1")
+        self.root.option_add("*Button.relief", "flat")
+        self.root.option_add("*Button.highlightThickness", "0")
 
         content = tk.Frame(self.root, bg=BG_COLOUR, padx=15, pady=5)
         content.pack(fill=tk.BOTH, expand=True)
@@ -297,7 +306,7 @@ class ConfigGUI:
         tk.Entry(row_dir, textvariable=self.main_dir_var, font=("Segoe UI", 10), relief="flat", 
                  bg=CARD_COLOUR, fg=TEXT_COLOUR, insertbackground=TEXT_COLOUR,
                  highlightthickness=1, highlightbackground=BORDER_COLOUR).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
-        tk.Button(row_dir, text="Browse", command=self.browse_directory, bg="#48484a", fg="white", relief="flat", padx=10, pady=4).pack(side=tk.RIGHT)
+        tk.Button(row_dir, text="Browse", command=self.browse_directory, bg="#48484a", fg="white", relief="flat", padx=10, pady=4, highlightthickness=0).pack(side=tk.RIGHT)
 
         format_card = tk.Frame(tab_dir, bg=CARD_COLOUR, padx=15, pady=15, highlightthickness=1, highlightbackground=BORDER_COLOUR)
         format_card.pack(fill=tk.BOTH, expand=True)

@@ -180,7 +180,8 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     subtitle_url = subtitle['url']
                     # Get the ISO language code from the mapping
                     lang_code = language_code_mapping.get(subtitle['language'], subtitle['language'][:2].lower())
-                    file_name = f"{subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '').replace(':', '-')}.{lang_code}.{subtitle['file_type'].lower()}"
+                    author_sanitised = subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '').replace(':', '-')
+                    file_name = f"{author_sanitised}.{lang_code}.{subtitle['file_type'].lower()}"
                     file_path = os.path.join(download_directory, file_name)
 
                     # Ensure the download directory exists
