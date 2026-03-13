@@ -2,17 +2,16 @@ import hashlib
 import os
 import requests
 from tqdm import tqdm
-from dotenv import load_dotenv
 import re
 import time
-
-# Load environment variables from .env
-load_dotenv()
-api_key = os.getenv('ENCORA_API_KEY')
+from modules.config import config
+api_key = config.api_key
 
 def get_encora_id_from_folder(folder_name):
-    """Extract Encora ID from the folder name."""
-    match = re.search(r'\{e-(\d+)\}', folder_name)
+    """Extract Encora ID from the folder name (handles various containers)."""
+    match = re.search(r'[\{\[\(]e-(\d+)[\}\]\)]', folder_name)
+    if not match:
+        match = re.search(r'e-(\d+)', folder_name)
     return match.group(1) if match else None
 
 language_code_mapping = {
@@ -147,6 +146,9 @@ def file_content_hash(file_path):
 
 def download_all_subtitles(recording_ids_with_subtitles):
     """Download subtitles for the given Encora IDs."""
+    if not recording_ids_with_subtitles:
+        return
+
     # Extract all recording IDs
     recording_ids = [item[0] for item in recording_ids_with_subtitles]
     ids_str = ','.join(recording_ids)
@@ -214,7 +216,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
 
 def download_subtitles_for_folders(main_directory, recording_data):
     """Recursively download subtitles for all folders in the main directory."""
-    
+    print("Checking for missing subtitles...")
     # Get all directories to process
     all_folders = []
     for root, dirs, _ in os.walk(main_directory):
@@ -233,5 +235,9 @@ def download_subtitles_for_folders(main_directory, recording_data):
             
             if matching_recording and matching_recording.get('recording_data', {}).get('metadata', {}).get('has_subtitles', False):
                 recording_ids_with_subtitles.append((encora_id, folder_path))
+
+    if not recording_ids_with_subtitles:
+        print("No recordings found requiring subtitle downloads.")
+        return
 
     download_all_subtitles(recording_ids_with_subtitles)

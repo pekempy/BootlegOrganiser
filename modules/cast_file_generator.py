@@ -110,8 +110,17 @@ def write_cast_file(path, content):
         file.write(content)
 
 def create_cast_files(encora_data):
+    from modules.config import config
+    excluded_ids = config.excluded_ids
+    skip_cast = config.exclude_cast_files
+    
     for entry in encora_data:
         path = entry['path']
+        encora_id = str(entry['encora_id'])
+        
+        if skip_cast and encora_id in excluded_ids:
+            continue
+            
         recording_data = entry['recording_data']
         # Generate template
         template = generate_template(recording_data)

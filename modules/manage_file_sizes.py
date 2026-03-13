@@ -2,10 +2,9 @@ import os
 import time
 import requests
 import urllib
-from dotenv import load_dotenv
-from tqdm import tqdm
+from modules.config import config
+api_key = config.api_key
 
-# Define media formats
 VIDEO_FORMATS = {
     '.avi', '.divx', '.m2t', '.m2ts', '.mp4', '.m4v', '.mpeg', '.mpg', '.mts', '.mov', 
     '.mkv', '.vob', '.ts', '.wmv'
@@ -13,9 +12,6 @@ VIDEO_FORMATS = {
 AUDIO_FORMATS = {
     '.mp3', '.m4a', '.wav', '.flac', '.aiff', '.m4b', '.alac', '.aac'
 }
-
-load_dotenv()
-api_key = os.getenv('ENCORA_API_KEY')
 
 def get_file_size(size_bytes):
     """Convert file size in bytes to a human-readable format with binary units and trim off after the second decimal place."""
