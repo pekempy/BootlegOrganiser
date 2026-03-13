@@ -49,8 +49,11 @@ def format_date(date_info):
     date_variant = date_info.get('date_variant', '')
 
     # Use placeholders if month or day are not known.
-    month = '__' if not month_known else month
-    day = '__' if not day_known else day
+    char = config.date_replace_char
+    double_char = f"{char}{char}"
+    
+    month = double_char if not month_known else month
+    day = double_char if not day_known else day
 
     # Format the date as 'YYYY-MM-DD' or with placeholders.
     formatted_date = f"{year}-{month}-{day}"
