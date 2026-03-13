@@ -44,13 +44,20 @@ def run_organiser():
         create_encora_id_files(recording_data)
 
     # Step 5: Evaluate file sizes
+    updated_formats_count = 0
     for encora_id, folder_path in tqdm.tqdm(local_ids, desc="Updating non-matching Encora Formats...", unit="ID"):
         if config.exclude_format_update and str(encora_id) in config.excluded_ids:
             continue
         summary = process_directory(folder_path)  
         if(summary):
             # Update encora formats _if_ the current format doesn't match what is local
-            response = send_format(recording_data, encora_id, summary)
+            if send_format(recording_data, encora_id, summary):
+                updated_formats_count += 1
+    
+    if updated_formats_count > 0:
+        print(f"Updated formats for {updated_formats_count} recordings.")
+    else:
+        print("No format updates were needed.")
 
     # Step 6: Move and rename folders based on encora_data
     move_and_rename_folders(recording_data, main_directory)

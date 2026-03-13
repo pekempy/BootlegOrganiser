@@ -144,9 +144,10 @@ def send_format(recording_data, encora_id, media_summary):
     try:
         # Send empty json body to satisfy some server configurations
         response = authenticated_request('POST', url, headers=headers, json={})
-        return response.json()
+        return True # Successfully sent update
     except Exception as err:
         if "500" in str(err):
             print(f"Server Error (500) updating format for {encora_id}. The recording might not be in your collection or the ID is invalid.")
         else:
             print(f"Error updating format for {encora_id}: {err}")
+        return False

@@ -170,6 +170,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
                 subtitles_by_recording_id[recording_id] = []
             subtitles_by_recording_id[recording_id].append(subtitle)
 
+        updated_subs = 0
         for recording_id, folder_path in tqdm(recording_ids_with_subtitles, desc="Downloading non-matching subtitles"):
             if recording_id in subtitles_by_recording_id:
                 subtitles = subtitles_by_recording_id[recording_id]
@@ -205,6 +206,12 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     # Write the new content to the file
                     with open(file_path, 'wb') as file:
                         file.write(new_content)
+                    updated_subs += 1
+        
+        if updated_subs > 0:
+            print(f"Downloaded/Updated {updated_subs} subtitle files.")
+        else:
+            print("All local subtitles are already up to date.")
                 
     except Exception as e:
         print(f"Error downloading subtitles: {e}")
