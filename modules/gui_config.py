@@ -351,7 +351,8 @@ class ConfigGUI:
             for lbl, tag_val in tags:
                 def make_cmd(b=builder, tv=tag_val): return lambda: b.add_tag(tv)
                 tk.Button(t, text=lbl, bg=BG_COLOUR, fg=TEXT_COLOUR, relief="flat", padx=6, pady=2, 
-                         font=("Segoe UI", 8), cursor="hand2", command=make_cmd()).pack(side=tk.LEFT, padx=1)
+                         font=("Segoe UI", 8), cursor="hand2", command=make_cmd(),
+                         highlightthickness=0, activebackground=BORDER_COLOUR, activeforeground=TEXT_COLOUR).pack(side=tk.LEFT, padx=1)
             
             builder.pack(fill=tk.X, pady=5)
             builder.bind("<FocusIn>", lambda e: self.set_active_builder(builder))
@@ -401,9 +402,11 @@ class ConfigGUI:
         footer.pack(fill=tk.X, pady=15)
         
         tk.Button(footer, text="Run Organiser", bg=ACCENT_BLUE, fg="white", relief="flat", 
-                  padx=20, pady=8, font=("Segoe UI", 10, "bold"), cursor="hand2", command=self.run_now).pack(side=tk.RIGHT, padx=10)
+                  padx=20, pady=8, font=("Segoe UI", 10, "bold"), cursor="hand2", command=self.run_now,
+                  highlightthickness=0, activebackground="#0071e3", activeforeground="white").pack(side=tk.RIGHT, padx=10)
         tk.Button(footer, text="Save Settings", bg="#48484a", fg="white", relief="flat", 
-                  padx=15, pady=8, font=("Segoe UI", 10), cursor="hand2", command=self.save_config).pack(side=tk.RIGHT)
+                  padx=15, pady=8, font=("Segoe UI", 10), cursor="hand2", command=self.save_config,
+                  highlightthickness=0, activebackground="#5a5a5c", activeforeground="white").pack(side=tk.RIGHT)
 
     def create_label(self, parent, text, font=("Segoe UI", 10), bg=None, fg=None):
         return tk.Label(parent, text=text, font=font, bg=bg or parent.cget('bg'), fg=fg or TEXT_COLOUR)

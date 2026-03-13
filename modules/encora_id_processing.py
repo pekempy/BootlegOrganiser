@@ -5,6 +5,7 @@ import requests
 from tqdm import tqdm
 from time import sleep
 from modules.config import config
+from modules.api_utils import authenticated_request
 
 # Define regex patterns to extract Encora ID from folder names (handles various containers)
 id_pattern = re.compile(r'[\{\[\(](\d+)[\}\]\)]')
@@ -50,7 +51,6 @@ def fetch_collection():
     }
     all_recordings = []
     current_page = 1
-    retries = 3
     timeout = 30
     page_size = config.collection_page_size
 
@@ -59,8 +59,7 @@ def fetch_collection():
 
     while True:
         try:
-            response = session.get(f"{base_url}?per_page={page_size}&page={current_page}", timeout=timeout)
-            response.raise_for_status()
+            response = authenticated_request('GET', f"{base_url}?per_page={page_size}&page={current_page}", session=session, timeout=timeout)
             data = response.json()
 
             if 'data' not in data:
@@ -75,17 +74,9 @@ def fetch_collection():
             
             current_page += 1
 
-        except requests.exceptions.Timeout:
-            print(f"\nRequest timed out on page {current_page}. Retrying...")
-            sleep(2)
-
-        except requests.exceptions.RequestException as e:
-            print(f"\nError occurred: {e}")
-            retries -= 1
-            if retries == 0:
-                print("Max retries reached. Exiting.")
-                break
-            sleep(2)
+        except Exception as e:
+            print(f"\nError occurred fetching collection: {e}")
+            break
 
     print() # New line after the loading indicator
     return all_recordings
@@ -116,15 +107,8 @@ def process_encora_ids(encora_data, local_ids):
         else:            
             url = f"https://encora.it/api/collection/{encora_id}/collect"
             try:
-                response = session.post(url)
-            
-                if response.headers.get('x-RateLimit-Remaining') == '0':
-                    print(f"\nRate limit reached for ID {encora_id}. Waiting for 1 minute...")
-                    time.sleep(60)
-                    response = session.post(url)
+                response = authenticated_request('POST', url, session=session)
                 
-                response.raise_for_status() 
-
                 fetched_recording = fetch_single_recording(encora_id, session)
                 if fetched_recording:
                     encora_data.append({'recording': fetched_recording, 'format': ""})
@@ -137,37 +121,18 @@ def process_encora_ids(encora_data, local_ids):
                 else:
                     print(f"\nFailed to fetch recording {encora_id} after collecting.")
                     
-            except requests.exceptions.HTTPError as err:
-                print(f"\nHTTP error occurred for ID {encora_id}: {err}")
+            except Exception as err:
+                 print(f"\nError collecting ID {encora_id}: {err}")
 
     return results
 
 def fetch_single_recording(encora_id, session=None):
-    base_url = "https://encora.it/api/recording"
-    
-    if session is None:
-        session = requests.Session()
-        session.headers.update({
-            'Authorization': f'Bearer {config.api_key}', 
-            'User-Agent': 'BootOrganiser'
-        })
-
-    retries = 3
-    timeout = 30
-
-    for attempt in range(retries):
-        try:
-            response = session.get(f"{base_url}/{encora_id}", timeout=timeout)
-            response.raise_for_status()
-            recording_json = response.json()
-
-            if 'id' in recording_json:
-                return recording_json
-            else:
-                print(f"\nNo valid recording ID found yet for {encora_id} (attempt {attempt + 1}/{retries})...")
-                time.sleep(2)
-        except requests.exceptions.RequestException as e:
-            print(f"\nRequest error for {encora_id}: {e}")
-            time.sleep(2)
-
-    return None
+    """Fetch details of a single recording."""
+    url = f"https://encora.it/api/recordings/{encora_id}"
+    try:
+        response = authenticated_request('GET', url, session=session)
+        data = response.json()
+        return data.get('recording') or data # Wrap for different response shapes if needed
+    except Exception as e:
+        print(f"\nError fetching recording {encora_id}: {e}")
+        return None

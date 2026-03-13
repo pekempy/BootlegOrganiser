@@ -5,6 +5,8 @@ from tqdm import tqdm
 import re
 import time
 from modules.config import config
+from modules.api_utils import authenticated_request
+
 api_key = config.api_key
 
 def get_encora_id_from_folder(folder_name):
@@ -157,14 +159,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
     headers = {'Authorization': f'Bearer {api_key}', "User-Agent": "BootOrganiser"}
     
     try:
-        response = requests.get(subtitles_url, headers=headers)
-        response.raise_for_status()
-        
-        # Check rate limit header
-        if response.headers.get('x-RateLimit-Remaining') == '0':
-            print("Rate limit reached. Waiting for 1 minute...")
-            time.sleep(60)  # Wait for 1 minute
-        
+        response = authenticated_request('GET', subtitles_url, headers=headers)
         subtitles_data = response.json()
 
         # Group subtitles by recording_id
@@ -191,6 +186,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     os.makedirs(download_directory, exist_ok=True)
 
                     # Download the subtitle file
+                    # We use regular requests here for the file content as it might be a different domain or CDN
                     subtitle_response = requests.get(subtitle_url, stream=True)
                     subtitle_response.raise_for_status()
 
@@ -210,7 +206,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     with open(file_path, 'wb') as file:
                         file.write(new_content)
                 
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         print(f"Error downloading subtitles: {e}")
                 
 
