@@ -9,7 +9,8 @@ BG_COLOUR = "#1c1c1e"
 CARD_COLOUR = "#2c2c2e"
 ACCENT_BLUE = "#0a84ff"
 TEXT_COLOUR = "#f5f5f7"
-BTN_TEXT_COLOUR = "#d1d1d6"
+BTN_BG_COLOUR = "#e5e5ea"    # Light grey for buttons
+BTN_TEXT_COLOUR = "#1c1c1e"   # Dark text for contrast
 MUTED_TEXT = "#8e8e93"
 BORDER_COLOUR = "#3a3a3c"
 TAG_BG = "#0a84ff"
@@ -241,9 +242,9 @@ class ConfigGUI:
         self.root.option_add("*TCombobox*Listbox.selectForeground", "white")
         
         # Force global button styling to prevent OS overrides
-        self.root.option_add("*Button.background", BG_COLOUR)
+        self.root.option_add("*Button.background", BTN_BG_COLOUR)
         self.root.option_add("*Button.foreground", BTN_TEXT_COLOUR)
-        self.root.option_add("*Button.activeBackground", BORDER_COLOUR)
+        self.root.option_add("*Button.activeBackground", "#d1d1d6")
         self.root.option_add("*Button.activeForeground", BTN_TEXT_COLOUR)
         self.root.option_add("*Button.borderWidth", "1")
         self.root.option_add("*Button.relief", "flat")
@@ -307,7 +308,7 @@ class ConfigGUI:
         tk.Entry(row_dir, textvariable=self.main_dir_var, font=("Segoe UI", 10), relief="flat", 
                  bg=CARD_COLOUR, fg=TEXT_COLOUR, insertbackground=TEXT_COLOUR,
                  highlightthickness=1, highlightbackground=BORDER_COLOUR).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
-        tk.Button(row_dir, text="Browse", command=self.browse_directory, bg="#48484a", fg="white", relief="flat", padx=10, pady=4, highlightthickness=0).pack(side=tk.RIGHT)
+        tk.Button(row_dir, text="Browse", command=self.browse_directory, bg=BTN_BG_COLOUR, fg=BTN_TEXT_COLOUR, relief="flat", padx=10, pady=4, highlightthickness=0).pack(side=tk.RIGHT)
 
         format_card = tk.Frame(tab_dir, bg=CARD_COLOUR, padx=15, pady=15, highlightthickness=1, highlightbackground=BORDER_COLOUR)
         format_card.pack(fill=tk.BOTH, expand=True)
@@ -360,9 +361,9 @@ class ConfigGUI:
                 tags.append(("Folder", "folder"))
             for lbl, tag_val in tags:
                 def make_cmd(b=builder, tv=tag_val): return lambda: b.add_tag(tv)
-                tk.Button(t, text=lbl, bg=BG_COLOUR, fg=BTN_TEXT_COLOUR, relief="flat", padx=6, pady=2, 
+                tk.Button(t, text=lbl, bg=BTN_BG_COLOUR, fg=BTN_TEXT_COLOUR, relief="flat", padx=6, pady=2, 
                          font=("Segoe UI", 8), cursor="hand2", command=make_cmd(),
-                         highlightthickness=0, activebackground=BORDER_COLOUR, activeforeground=BTN_TEXT_COLOUR).pack(side=tk.LEFT, padx=1)
+                         highlightthickness=0, activebackground="#d1d1d6", activeforeground=BTN_TEXT_COLOUR).pack(side=tk.LEFT, padx=1)
             
             builder.pack(fill=tk.X, pady=5)
             builder.bind("<FocusIn>", lambda e: self.set_active_builder(builder))
@@ -414,9 +415,9 @@ class ConfigGUI:
         tk.Button(footer, text="Run Organiser", bg=ACCENT_BLUE, fg="white", relief="flat", 
                   padx=20, pady=8, font=("Segoe UI", 10, "bold"), cursor="hand2", command=self.run_now,
                   highlightthickness=0, activebackground="#0071e3", activeforeground="white").pack(side=tk.RIGHT, padx=10)
-        tk.Button(footer, text="Save Settings", bg="#48484a", fg="white", relief="flat", 
+        tk.Button(footer, text="Save Settings", bg=BTN_BG_COLOUR, fg=BTN_TEXT_COLOUR, relief="flat", 
                   padx=15, pady=8, font=("Segoe UI", 10), cursor="hand2", command=self.save_config,
-                  highlightthickness=0, activebackground="#5a5a5c", activeforeground="white").pack(side=tk.RIGHT)
+                  highlightthickness=0, activebackground="#d1d1d6", activeforeground=BTN_TEXT_COLOUR).pack(side=tk.RIGHT)
 
     def create_label(self, parent, text, font=("Segoe UI", 10), bg=None, fg=None):
         return tk.Label(parent, text=text, font=font, bg=bg or parent.cget('bg'), fg=fg or TEXT_COLOUR)
