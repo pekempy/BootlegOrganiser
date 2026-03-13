@@ -9,6 +9,7 @@ BG_COLOUR = "#1c1c1e"
 CARD_COLOUR = "#2c2c2e"
 ACCENT_BLUE = "#0a84ff"
 TEXT_COLOUR = "#f5f5f7"
+BTN_TEXT_COLOUR = "#d1d1d6"
 MUTED_TEXT = "#8e8e93"
 BORDER_COLOUR = "#3a3a3c"
 TAG_BG = "#0a84ff"
@@ -241,9 +242,9 @@ class ConfigGUI:
         
         # Force global button styling to prevent OS overrides
         self.root.option_add("*Button.background", BG_COLOUR)
-        self.root.option_add("*Button.foreground", TEXT_COLOUR)
+        self.root.option_add("*Button.foreground", BTN_TEXT_COLOUR)
         self.root.option_add("*Button.activeBackground", BORDER_COLOUR)
-        self.root.option_add("*Button.activeForeground", TEXT_COLOUR)
+        self.root.option_add("*Button.activeForeground", BTN_TEXT_COLOUR)
         self.root.option_add("*Button.borderWidth", "1")
         self.root.option_add("*Button.relief", "flat")
         self.root.option_add("*Button.highlightThickness", "0")
@@ -359,9 +360,9 @@ class ConfigGUI:
                 tags.append(("Folder", "folder"))
             for lbl, tag_val in tags:
                 def make_cmd(b=builder, tv=tag_val): return lambda: b.add_tag(tv)
-                tk.Button(t, text=lbl, bg=BG_COLOUR, fg=TEXT_COLOUR, relief="flat", padx=6, pady=2, 
+                tk.Button(t, text=lbl, bg=BG_COLOUR, fg=BTN_TEXT_COLOUR, relief="flat", padx=6, pady=2, 
                          font=("Segoe UI", 8), cursor="hand2", command=make_cmd(),
-                         highlightthickness=0, activebackground=BORDER_COLOUR, activeforeground=TEXT_COLOUR).pack(side=tk.LEFT, padx=1)
+                         highlightthickness=0, activebackground=BORDER_COLOUR, activeforeground=BTN_TEXT_COLOUR).pack(side=tk.LEFT, padx=1)
             
             builder.pack(fill=tk.X, pady=5)
             builder.bind("<FocusIn>", lambda e: self.set_active_builder(builder))
