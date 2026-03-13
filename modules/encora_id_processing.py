@@ -7,8 +7,7 @@ from time import sleep
 from modules.config import config
 from modules.api_utils import authenticated_request
 
-# Define regex patterns to extract Encora ID from folder names (handles various containers)
-id_pattern = re.compile(r'[\{\[\(](\d+)[\}\]\)]')
+# Define regex patterns to extract Encora ID from folder names (strictly requires 'e-' prefix)
 e_id_pattern = re.compile(r'[\{\[\(]e-(\d+)[\}\]\)]')
 
 def find_local_encora_ids(main_directory):
@@ -17,24 +16,29 @@ def find_local_encora_ids(main_directory):
     # Loop through all subfolders in main_directory
     for root, dirs, _ in os.walk(main_directory):
         for dir_name in dirs:
-            # Search for Encora ID in the folder name
-            match = id_pattern.search(dir_name)
-            if match:
+            folder_path = os.path.join(root, dir_name)
+            encora_id = None
+
+            # 1. Prioritise folder name regex patterns (strictly requiring 'e-')
+            if match := e_id_pattern.search(dir_name):
                 encora_id = match.group(1)
-            else:
-                match = e_id_pattern.search(dir_name)
-                if match:
-                    encora_id = match.group(1)
-                else:
-                    # Final fallback: look for raw e-ID without container
-                    match = re.search(r'e-(\d+)', dir_name)
-                    if match:
-                        encora_id = match.group(1)
-                    else:
-                        continue  # No Encora ID found in this folder
-                
-            folder_path = os.path.join(root, dir_name)  # Full path
-            encora_ids.append((encora_id, folder_path))
+            elif match := re.search(r'e-(\d+)', dir_name):
+                encora_id = match.group(1)
+
+            # 2. Fallback to hidden .encora-ID files ONLY if folder name has no ID
+            if not encora_id:
+                try:
+                    for file_name in os.listdir(folder_path):
+                        if file_name.startswith('.encora-'):
+                            id_match = re.search(r'\.encora-(\d+)', file_name)
+                            if id_match:
+                                encora_id = id_match.group(1)
+                                break
+                except (PermissionError, FileNotFoundError):
+                    pass
+
+            if encora_id:
+                encora_ids.append((encora_id, folder_path))
     
     return encora_ids
 
