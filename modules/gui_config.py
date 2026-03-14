@@ -36,7 +36,7 @@ class FormatPart:
             tag_frame = tk.Frame(self.frame, bg=TAG_BG)
             tag_frame.pack(side=tk.LEFT, padx=2)
             
-            content = self.value.strip('{}').replace('_', ' ').title().replace(' Id', ' ID')
+            content = self.value
             label = tk.Label(tag_frame, text=content, bg=TAG_BG, fg="white", 
                             font=("Segoe UI", 9, "bold"), pady=4)
             label.pack(side=tk.LEFT, padx=8)
@@ -148,19 +148,30 @@ class FormatBuilder(tk.Frame):
         self.update_state()
         idx = getattr(self, 'active_idx', -1)
         
-        if idx != -1 and idx < len(self.part_widgets):
-            entry = self.part_widgets[idx].entry
-            cursor_pos = entry.index(tk.INSERT)
+        if idx != -1 and idx < len(self.parts):
+            # Need to get cursor_pos from the active entry if it's a text part
+            cursor_pos = 0
+            if self.active_entry and self.part_widgets[idx].part_type == 'text':
+                cursor_pos = self.active_entry.index(tk.INSERT)
+
             val = self.parts[idx]['value']
-            left = val[:cursor_pos]
-            right = val[cursor_pos:]
-            
-            # Replace text part with: [left, tag, right]
-            self.parts[idx:idx+1] = [
-                {'type': 'text', 'value': left},
-                {'type': 'tag', 'value': f"{{{tag}}}"},
-                {'type': 'text', 'value': right}
-            ]
+            # Safeguard: ensure we are actually splitting a text part
+            if self.parts[idx]['type'] == 'text':
+                left = val[:cursor_pos]
+                right = val[cursor_pos:]
+                
+                # Replace text part with: [left, tag, right]
+                new_parts = []
+                if left: new_parts.append({'type': 'text', 'value': left})
+                else: new_parts.append({'type': 'text', 'value': ''}) # Keep wrapper
+                
+                new_parts.append({'type': 'tag', 'value': f"{{{tag}}}"})
+                new_parts.append({'type': 'text', 'value': right})
+                
+                self.parts[idx:idx+1] = new_parts
+            else:
+                # If for some reason we are on a tag, append after it
+                self.parts.insert(idx + 1, {'type': 'tag', 'value': f"{{{tag}}}"})
         else:
             self.parts.append({'type': 'tag', 'value': f"{{{tag}}}"})
             
@@ -168,11 +179,29 @@ class FormatBuilder(tk.Frame):
         self.render_parts()
         
         if idx != -1:
-            for i in range(idx + 1, len(self.part_widgets)):
-                if self.part_widgets[i].part_type == 'text':
-                    self.part_widgets[i].entry.focus_set()
-                    self.part_widgets[i].entry.icursor(0)
-                    break
+            # Find the text part immediately after the newly inserted tag
+            # The new tag is at idx + (1 if left part exists, 0 otherwise)
+            # The text part after it would be at idx + (2 if left part exists, 1 otherwise)
+            # Or simply, iterate from the original idx + 1
+            
+            # Calculate the index of the newly inserted tag
+            inserted_tag_idx = -1
+            if idx != -1 and self.parts[idx]['type'] == 'text': # If we split a text part
+                if cursor_pos > 0: # If there was a 'left' part
+                    inserted_tag_idx = idx + 1
+                else: # If tag was inserted at the beginning of the text part
+                    inserted_tag_idx = idx + 0
+            elif idx != -1: # If we inserted after an existing tag
+                inserted_tag_idx = idx + 1
+            else: # If appended to the end
+                inserted_tag_idx = len(self.parts) - 1 # The last part is the new tag
+
+            # Now find the text part immediately after the inserted tag
+            if inserted_tag_idx != -1 and inserted_tag_idx + 1 < len(self.part_widgets):
+                next_part_widget = self.part_widgets[inserted_tag_idx + 1]
+                if next_part_widget.part_type == 'text':
+                    next_part_widget.entry.focus_set()
+                    next_part_widget.entry.icursor(0) # Set cursor at the beginning of the next text part
         self.on_change()
         
     def on_part_change(self):
@@ -354,16 +383,18 @@ class ConfigGUI:
             # Tray
             t = tk.Frame(parent, bg=CARD_COLOUR)
             t.pack(fill=tk.X, pady=2)
-            tags = [("Show", "show_name"), ("Tour", "tour"), ("Date", "date"), 
-                    ("Matinee", "matinee"), ("HL", "highlights"), ("NFT", "nft"),
-                    ("ID", "encora_id"), ("Type", "type"), ("S-Type", "short_type"), ("Master", "master")]
+            tags = [("{show_name}", "show_name"), ("{tour}", "tour"), ("{date}", "date"), 
+                    ("{matinee}", "matinee"), ("{highlights}", "highlights"), ("{nft}", "nft"),
+                    ("{encora_id}", "encora_id"), ("{type}", "type"), ("{short_type}", "short_type"), ("{master}", "master")]
             if title == "Structure Pattern":
-                tags.append(("Folder", "folder"))
+                tags.append(("{folder}", "folder"))
             for lbl, tag_val in tags:
-                def make_cmd(b=builder, tv=tag_val): return lambda: b.add_tag(tv)
+                # Use a proper lambda with captured variables to avoid closure bugs
                 tk.Button(t, text=lbl, bg=BTN_BG_COLOUR, fg=BTN_TEXT_COLOUR, relief="flat", padx=6, pady=2, 
-                         font=("Segoe UI", 8), cursor="hand2", command=make_cmd(),
-                         highlightthickness=0, activebackground="#d1d1d6", activeforeground=BTN_TEXT_COLOUR).pack(side=tk.LEFT, padx=1)
+                         font=("Segoe UI", 8), cursor="hand2", 
+                         command=lambda b=builder, tv=tag_val: b.add_tag(tv),
+                         highlightthickness=0, takefocus=0,
+                         activebackground="#d1d1d6", activeforeground=BTN_TEXT_COLOUR).pack(side=tk.LEFT, padx=1)
             
             builder.pack(fill=tk.X, pady=5)
             builder.bind("<FocusIn>", lambda e: self.set_active_builder(builder))
