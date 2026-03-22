@@ -2,6 +2,7 @@ import os
 import requests
 import csv
 from dotenv import load_dotenv
+from modules.api_utils import authenticated_request
 
 # Load environment variables from .env
 load_dotenv()
@@ -17,10 +18,9 @@ def fetch_recording_details(encora_id):
         'User-Agent': 'BootOrganiser'
     }
     try:
-        response = requests.get(f"{base_url}/{encora_id}", headers=headers)
-        response.raise_for_status()
+        response = authenticated_request('GET', f"{base_url}/{encora_id}", headers=headers)
         return response.json()
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         print(f"Error fetching details for Encora ID {encora_id}: {e}")
         return None
 
@@ -30,27 +30,29 @@ def parse_recording_details(recording_data):
         print("No recording data found.")  # Debug print
         return None
 
-    # Directly access the fields from the top-level response
-    show_name = recording_data.get('show', 'Unknown Show')
-    tour_name = recording_data.get('tour', 'Unknown Tour')
-    date_info = recording_data.get('date', {})
+    # Handle both wrapped and unwrapped response shapes
+    data = recording_data.get('recording') if 'recording' in recording_data else recording_data
+
+    show_name = data.get('show', 'Unknown Show')
+    tour_name = data.get('tour', 'Unknown Tour')
+    date_info = data.get('date', {})
     date = date_info.get('full_date', 'Unknown Date')
-    master = recording_data.get('master', 'Unknown Master')
-    nft = recording_data.get('nft', {})
+    master = data.get('master', 'Unknown Master')
+    nft = data.get('nft', {})
     nft_status = (
         nft.get('nft_date', 'NFT Forever')[:10]  # Extract only the date (YYYY-MM-DD)
         if nft.get('nft_date') else "Not NFT"
     )
-    cast = recording_data.get('cast', [])
+    cast = data.get('cast', [])
     cast_list = ', '.join(
         f"{entry['performer'].get('name', 'Unknown Performer')} "
         f"({(entry.get('status') if isinstance(entry.get('status'), str) else '').strip()} {entry['character'].get('name', 'Unknown Role')})".strip()
         for entry in cast if entry.get('performer') and entry.get('character')
     )
-    encora_link = f"https://encora.it/recordings/{recording_data.get('id', 'Unknown')}"
+    encora_link = f"https://encora.it/recordings/{data.get('id', 'Unknown')}"
 
     return {
-        'encora_id': recording_data.get('id', 'Unknown'),
+        'encora_id': data.get('id', 'Unknown'),
         'show_name': show_name,
         'tour_name': tour_name,
         'date': date,
@@ -78,10 +80,11 @@ def process_ids(file_path, output_file):
             details.append(parsed_details)
 
     # Write the details to the output CSV file
-    with open(output_file, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=['encora_id', 'show_name', 'tour_name', 'date', 'master', 'nft_status', 'cast', 'encora_link'])
-        writer.writeheader()
-        writer.writerows(details)
+    if details:
+        with open(output_file, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=['encora_id', 'show_name', 'tour_name', 'date', 'master', 'nft_status', 'cast', 'encora_link'])
+            writer.writeheader()
+            writer.writerows(details)
 
 if __name__ == "__main__":
     print("Processing missing IDs...")

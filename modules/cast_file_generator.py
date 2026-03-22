@@ -105,24 +105,52 @@ def write_cast_file(path, content):
             existing_content = file.read()
         # Only proceed if the new content is different from the existing content
         if content == existing_content:
-            return
+            return False
     with open(cast_file_path, 'w', encoding='utf-8') as file:
         file.write(content)
+    return True
 
 def create_cast_files(encora_data):
+    from modules.config import config
+    excluded_ids = config.excluded_ids
+    skip_cast = config.exclude_cast_files
+    updated_count = 0
+    
     for entry in encora_data:
         path = entry['path']
+        encora_id = str(entry['encora_id'])
+        
+        if skip_cast and encora_id in excluded_ids:
+            continue
+            
         recording_data = entry['recording_data']
         # Generate template
         template = generate_template(recording_data)
         # Write to Cast.txt
-        write_cast_file(path, template)
+        if write_cast_file(path, template):
+            updated_count += 1
+            
+    if updated_count > 0:
+        print(f"Updated Cast.txt for {updated_count} recordings.")
+    else:
+        print("All local Cast.txt files are already up to date.")
 
 def create_encora_id_files(encora_data):
     for entry in encora_data:
         path = entry['path']
         recording_data = entry['recording_data']
-        encora_id = str(recording_data.get('id', ''))
+        
+        # Get the real ID from the official API response
+        id_val = recording_data.get('id')
+        if not id_val:
+            continue
+            
+        encora_id = str(id_val)
+        
+        # Double check it is strictly numeric (no date variants leaking here)
+        if not encora_id.isdigit():
+            continue
+
         encora_id_file_path = os.path.join(path, f'.encora-{encora_id}')
         
         # Check if the file already exists
@@ -130,4 +158,3 @@ def create_encora_id_files(encora_data):
             # Create an empty .encora-ID file
             with open(encora_id_file_path, 'w', encoding='utf-8'):
                 pass
-    

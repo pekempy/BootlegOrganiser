@@ -2,10 +2,11 @@ import os
 import time
 import requests
 import urllib
-from dotenv import load_dotenv
-from tqdm import tqdm
+from modules.config import config
+from modules.api_utils import authenticated_request
 
-# Define media formats
+api_key = config.api_key
+
 VIDEO_FORMATS = {
     '.avi', '.divx', '.m2t', '.m2ts', '.mp4', '.m4v', '.mpeg', '.mpg', '.mts', '.mov', 
     '.mkv', '.vob', '.ts', '.wmv'
@@ -13,9 +14,6 @@ VIDEO_FORMATS = {
 AUDIO_FORMATS = {
     '.mp3', '.m4a', '.wav', '.flac', '.aiff', '.m4b', '.alac', '.aac'
 }
-
-load_dotenv()
-api_key = os.getenv('ENCORA_API_KEY')
 
 def get_file_size(size_bytes):
     """Convert file size in bytes to a human-readable format with binary units and trim off after the second decimal place."""
@@ -132,7 +130,11 @@ def send_format(recording_data, encora_id, media_summary):
     # Find the matching recording from encora_data based on recording id
     matching_recording = next((item for item in recording_data if item['encora_id'] == encora_id), None)
 
-    if matching_recording and matching_recording.get('my_format') == media_summary:
+    if not matching_recording:
+        print(f"Skipping format update for {encora_id}: Recording not found in your collection.")
+        return
+
+    if matching_recording.get('my_format') == media_summary:
         return
 
     # Update format if it doesn't match
@@ -140,19 +142,12 @@ def send_format(recording_data, encora_id, media_summary):
     url = url.replace('+', '%20')
     
     try:
-        response = requests.post(url, headers=headers)
-        
-        # Check Rate Limit Header
-        if response.headers.get('x-RateLimit-Remaining') == '0':
-            print("Rate limit reached. Waiting for 1 minute...")
-            time.sleep(60)  # Wait for 60 seconds before retrying
-            response = requests.post(url, headers=headers)  # Retry the request
-        
-        response.raise_for_status() 
-        return response.json()
-    
-    except requests.exceptions.HTTPError as err:
-        print(f"HTTP error occurred: {err}")
-    
+        # Send empty json body to satisfy some server configurations
+        response = authenticated_request('POST', url, headers=headers, json={})
+        return True # Successfully sent update
     except Exception as err:
-        print(f"Other error occurred: {err}")
+        if "500" in str(err):
+            print(f"Server Error (500) updating format for {encora_id}. The recording might not be in your collection or the ID is invalid.")
+        else:
+            print(f"Error updating format for {encora_id}: {err}")
+        return False

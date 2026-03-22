@@ -1,70 +1,67 @@
 # Bootleg Organiser
 
-Bootleg Organiser is a Python script designed to help you organise your local files, update Encora, and ensure that your local data is kept up to date with Encora.
+Bootleg Organiser is a Python tool designed to keep your local bootleg collection structured, synchronised, and consistently named based on data from Encora.
 
-A useful thing I have found is after trading for a new recording, I can throw the folder into the directory specified in the `.env` file, and just name it `{e-######}` for the Encora ID, run the script and it sorts everything for me, including the format on Encora. You don't even need to 'Collect' it on the site first.
+By simply dropping a folder named with an Encora ID (e.g., `{e-12345}`) into your directory, the script will automatically fetch metadata, rename the folder, move it to the correct path, and update your Encora format details.
 
-## Features
+---
 
-- File Organisation: Bootleg Organiser scans your specified directories and organises your files based on customisable rules.
-- Auto-Collecting: Will automatically collect a recording on Encora if an ID is found in your folder.
-- Encora Update: Bootleg Organiser automatically updates your Encora formats with the latest files from your local storage.
-- Data Synchronization: Bootleg Organiser ensures that your local data is always synchronized with Encora, keeping everything up to date.
-- Subtitle Downloads: Optional, Bootleg Organiser will _remove any local subtitles_ and replace them with ones from Encora.
-- .encora-{id} files: These will be generated for use with the upcoming Encora PlexAgent
-- Cast files: Optional, These will replace any existing Cast.txt files with ones generated from Encora
-- Generates `missing_ids.txt` which is IDs you have collected on Encora but _not_ in your local folders
-- Generates `extra_ids.txt` which is IDs you have in your folders, but _not_ on Encora
+## Running the Organiser
 
-> [!WARNING]  
-> This will likely use a LOT of API requests on the first run, especially if updating a lot of formats.
-> Subsequent runs should use less as your formats will already match.
->
-> - Each run of the script will fetch your collection on Encora which will use n/500 requests (where n = the number of recordings you own)
->   - e.g. 1752 recordings / 500 = 3.5 so 4 requests will be made.
-> - Updating formats will be 1 request PER format to be updated on Encora. It will not use an API request if the format on Encora is the same as you have locally, but will if you upgrade your files.
-> - Downloading subtitles has been optimised to use 1 request to fetch all required subtitles.
+### Graphical Mode (Default)
+Run the script without any arguments to launch the **Tabbed Configuration GUI**:
+```bash
+python3 full-organise.py
+```
+The GUI allows you to live-preview your naming patterns, browse directories, and manage all settings visually.
 
-The script is configured to handle API request limits and wait for it to expire if the limit is reached, though this is untested.
+### Headless Mode (--auto)
+Run the script with the `--auto` flag to skip the GUI and run immediately using your saved settings:
+```bash
+python3 full-organise.py --auto
+```
+*This is ideal for scheduled tasks, batch jobs, or headless server environments.*
 
-<details>
-  <summary>Example output folder structure:</summary>
-
-This is with the following .env formats:  
- `SHOW_DIRECTORY_FORMAT="{show_name}/{tour}/{type}/"`
-
-`SHOW_FOLDER_FORMAT="[{date}] {highlights} [{matinee}] [{nft}] {show_name} ~ {master} {{e-{encora_id}}}"`
-
-![Example output](example_output.png)
-
-</details>
-
-## Installation
-
-1. Clone the Bootleg Organiser repository to your local machine.
-2. Configure the script by copying `.env.example` to `.env` and editing the `.env` file with your settings.
-3. Run the script using `python full-organise.py`.
-
-## Usage
-
-> [!WARNING]  
-> Any non-Encora recordings should have `{ne}` as part of the folder name to place them into a `!non-encora` folder so they will not be processed.
-> Any Encora recordings should have `{e-#####}` as part of the folder name to match them to Encora recordings. E.g. `Murder Ballad West End {e-1118317}`
-
-1. Specify the directories you want to organise in the `.env` file.
-2. Customise the file organisation rules according to your preferences.
-3. Run the script to start organising your files and updating Encora.
+---
 
 ## Configuration
 
-Bootleg Organiser uses a `.env` file for configuration. You can customise various settings, including:
+The organiser is highly customisable via the GUI (saved to `.env`).
 
-- Directories to organise
-- File organisation rules
-- Encora API credentials
+### 1. API & Options
+*   **Encora API Key**: required to fetch your collection and metadata.
+*   **Generate Cast Files**: Replaces/Creates `Cast.txt` in every folder with the latest cast list from Encora.
+*   **Generate ID Files**: Creates `.encora-id` files for compatibility with metadata agents (like Plex).
+*   **Always Redownload Subtitles**: Forces a refresh of all local subtitles from the Encora database.
 
-Please refer to the comments in the `.env.example` file for detailed instructions on how to configure each setting.
+### 2. Directory Settings
+*   **Main Directory**: The root folder where your collection lives.
+*   **Folder Pattern**: The naming scheme for individual recording folders.
+*   **Structure Pattern**: The folder hierarchy (e.g., `Show/Tour/Media Type/`).
+*   **Final Output Path**: A live preview showing the exact absolute path where your files will end up.
+*   **Tag Buttons**: Click to insert variables like `{show_name}`, `{date}`, `{master}`, `{type}` (Video/Audio), or `{short_type}` (V/A).
+*   **The `{folder}` Tag**: In the Structure Pattern, use `{folder}` to specify exactly where the recording folder sits in your hierarchy.
 
-## Running the Scripts
+### 3. Advanced Rules
+*   **Date Unknown Placeholder**: Choose the character (e.g., `x` or `0`) used when a month or day is unknown (results in `2024-xx-xx`).
+*   **Containers**: Wrap specific tags in `[]`, `()`, or `{}` automatically.
+*   **Exclusion Rules**: Skip specific Encora IDs or disable certain updates for sensitive folders.
 
-- **Full Organise**: Run `python full-organise.py` to perform a complete organisation of your files, download subtitles, and update your formats. It will also update any Cast.txt you have with corrected data from Encora.
+---
+
+## Smart Features
+
+- **Space Guard**: The organiser automatically prevents multiple consecutive spaces in names, keeping your file system tidy even if a tag is empty.
+- **ID Detection**: It detects Encora IDs regardless of your naming style (supports `{e-123}`, `[e-123]`, `(e-123)`, or raw `e-123`).
+- **Flexible Sorting**: Supports removing sorting articles (The/A/An) for folder structures.
+- **Processing Safety**: Folders are moved to a `!processing` queue during organisation to prevent data loss in case of hardware failure or crashes.
+
+## Installation
+
+1.  Clone the repository.
+2.  Install requirements: `pip install -r requirements.txt`.
+3.  Launch with `python3 full-organise.py`.
+
+> [!IMPORTANT]  
+> New folders should ideally contain the Encora ID in the name (like `{e-12345}`) for the first run.
+> For non-Encora folders you wish to skip, include `{ne}` in the name.

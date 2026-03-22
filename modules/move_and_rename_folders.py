@@ -1,11 +1,9 @@
 import os
 import shutil
-from tqdm import tqdm
-from dotenv import load_dotenv
 import re
-
-# Load environment variables from .env
-load_dotenv()
+from datetime import datetime
+from tqdm import tqdm
+from modules.config import config
 
 def sanitize_path(path):
     return re.sub(r'[<>:"/\\|?*]', '_', path)
@@ -51,8 +49,11 @@ def format_date(date_info):
     date_variant = date_info.get('date_variant', '')
 
     # Use placeholders if month or day are not known.
-    month = '__' if not month_known else month
-    day = '__' if not day_known else day
+    char = config.date_replace_char
+    double_char = f"{char}{char}"
+    
+    month = double_char if not month_known else month
+    day = double_char if not day_known else day
 
     # Format the date as 'YYYY-MM-DD' or with placeholders.
     formatted_date = f"{year}-{month}-{day}"
@@ -63,18 +64,29 @@ def format_date(date_info):
 
     return formatted_date
 
-def format_show_folder(recording_data, encora_id, format_string):
+def format_show_folder(recording_data, encora_id, format_string, folder_name=None):
     show_name = recording_data.get('show', 'Unknown Show')
     tour = recording_data.get('tour', 'Unknown Tour')
     date_info = recording_data.get('date', {})
     date = format_date(date_info)
     matinee = recording_data.get('date', {}).get('time', '')
     nft = recording_data.get('nft', {})
-    nft_status = "NFT" if nft.get('nft_forever', False) else ""
+    nft_status = ""
+    if nft.get('nft_forever', False):
+        nft_status = "NFTF"
+    elif nft.get('nft_date'):
+        try:
+            # Handle possible ISO format or simple date
+            nft_date_str = nft['nft_date'].split('T')[0] if 'T' in nft['nft_date'] else nft['nft_date']
+            nft_date_obj = datetime.strptime(nft_date_str, '%Y-%m-%d')
+            if nft_date_obj > datetime.now():
+                nft_status = f"NFT-{nft_date_str}"
+        except (ValueError, TypeError):
+            pass
     master = recording_data.get('master', 'Unknown Master')
     amount_recorded = recording_data.get('metadata', {}).get('amount_recorded', 'Unknown').capitalize()
     type_of_boot = recording_data.get('metadata', {}).get('media_type', 'Unmatched').capitalize()
-    encora_id_str = f"{encora_id}"
+    encora_id_str = f"e-{encora_id}"
 
     if format_string == os.getenv('SHOW_DIRECTORY_FORMAT', '{show_name}/{tour}/{type}/{folder}'):
         show_name = remove_sorting_articles(show_name)
@@ -92,18 +104,27 @@ def format_show_folder(recording_data, encora_id, format_string):
     }
     matinee = matinee_mapping.get(matinee.lower(), '')
     
+    def wrap(val, container):
+        if not val or container == 'None': return val
+        if container == 'Brackets []': return f"[{val}]"
+        if container == 'Parenthesis ()': return f"({val})"
+        if container == 'Curly Brackets {}': return f"{{{val}}}"
+        return val
+
     # Dictionary used in formatting the string
     format_dict = {
         'show_name': sanitize_path(show_name),
         'tour': sanitize_path(tour),
-        'date': date,
-        'highlights': amount_recorded,
-        'matinee': matinee,
-        'nft': nft_status,
+        'date': wrap(date, config.date_container),
+        'highlights': wrap(amount_recorded, config.amount_container),
+        'matinee': wrap(matinee, config.matinee_container),
+        'nft': wrap(nft_status, config.nft_container),
         'master': sanitize_path(master),
-        'encora_id': encora_id_str,
+        'encora_id': wrap(encora_id_str, config.encora_id_container),
         'type': type_of_boot,
-        'variant': '' 
+        'short_type': type_of_boot[0].upper() if type_of_boot and type_of_boot != 'Unmatched' else '',
+        'variant': '',
+        'folder': folder_name or ''
     }
     
     formatted_name = format_string.format(**format_dict)
@@ -117,20 +138,24 @@ def format_show_folder(recording_data, encora_id, format_string):
 def move_and_rename_folders(encora_data, main_directory):
     processing_directory = os.path.join(main_directory, '!processing')
 
-    show_directory_format = os.getenv('SHOW_DIRECTORY_FORMAT', '{show_name}/{tour}/{type}/{folder}')
-    show_folder_format = os.getenv('SHOW_FOLDER_FORMAT', '[{date}] [{matinee}] [{nft}] {show_name} ~ {master} {encora_id}')
+    show_directory_format = config.show_directory_format or '{show_name}/{tour}/{type}/{folder}'
+    show_folder_format = config.show_folder_format or '[{date}] [{matinee}] [{nft}] {show_name} ~ {master} {encora_id}'
 
     for entry in tqdm(encora_data, desc="Moving and Renaming Folders"):
         path = entry['path']
         recording_data = entry['recording_data']
         encora_id = entry['encora_id']
         
-        show_directory = format_show_folder(recording_data, encora_id, show_directory_format)
         show_folder = format_show_folder(recording_data, encora_id, show_folder_format)
+        show_directory = format_show_folder(recording_data, encora_id, show_directory_format, folder_name=show_folder)
 
         relative_path = os.path.relpath(path, start=processing_directory)
         old_path = os.path.join(processing_directory, relative_path)
-        new_path = os.path.join(main_directory, show_directory, show_folder)
+        
+        if '{folder}' in show_directory_format:
+            new_path = os.path.join(main_directory, show_directory)
+        else:
+            new_path = os.path.join(main_directory, show_directory, show_folder)
 
         # Ensure all directories in the new path exist
         try:

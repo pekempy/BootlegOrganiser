@@ -2,17 +2,18 @@ import hashlib
 import os
 import requests
 from tqdm import tqdm
-from dotenv import load_dotenv
 import re
 import time
+from modules.config import config
+from modules.api_utils import authenticated_request
 
-# Load environment variables from .env
-load_dotenv()
-api_key = os.getenv('ENCORA_API_KEY')
+api_key = config.api_key
 
 def get_encora_id_from_folder(folder_name):
-    """Extract Encora ID from the folder name."""
-    match = re.search(r'\{e-(\d+)\}', folder_name)
+    """Extract Encora ID from the folder name (handles various containers)."""
+    match = re.search(r'[\{\[\(]e-(\d+)[\}\]\)]', folder_name)
+    if not match:
+        match = re.search(r'e-(\d+)', folder_name)
     return match.group(1) if match else None
 
 language_code_mapping = {
@@ -147,6 +148,9 @@ def file_content_hash(file_path):
 
 def download_all_subtitles(recording_ids_with_subtitles):
     """Download subtitles for the given Encora IDs."""
+    if not recording_ids_with_subtitles:
+        return
+
     # Extract all recording IDs
     recording_ids = [item[0] for item in recording_ids_with_subtitles]
     ids_str = ','.join(recording_ids)
@@ -155,14 +159,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
     headers = {'Authorization': f'Bearer {api_key}', "User-Agent": "BootOrganiser"}
     
     try:
-        response = requests.get(subtitles_url, headers=headers)
-        response.raise_for_status()
-        
-        # Check rate limit header
-        if response.headers.get('x-RateLimit-Remaining') == '0':
-            print("Rate limit reached. Waiting for 1 minute...")
-            time.sleep(60)  # Wait for 1 minute
-        
+        response = authenticated_request('GET', subtitles_url, headers=headers)
         subtitles_data = response.json()
 
         # Group subtitles by recording_id
@@ -173,6 +170,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
                 subtitles_by_recording_id[recording_id] = []
             subtitles_by_recording_id[recording_id].append(subtitle)
 
+        updated_subs = 0
         for recording_id, folder_path in tqdm(recording_ids_with_subtitles, desc="Downloading non-matching subtitles"):
             if recording_id in subtitles_by_recording_id:
                 subtitles = subtitles_by_recording_id[recording_id]
@@ -182,13 +180,15 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     subtitle_url = subtitle['url']
                     # Get the ISO language code from the mapping
                     lang_code = language_code_mapping.get(subtitle['language'], subtitle['language'][:2].lower())
-                    file_name = f"{subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '').replace(':', '-')}.{lang_code}.{subtitle['file_type'].lower()}"
+                    author_sanitised = subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '').replace(':', '-')
+                    file_name = f"{author_sanitised}.{lang_code}.{subtitle['file_type'].lower()}"
                     file_path = os.path.join(download_directory, file_name)
 
                     # Ensure the download directory exists
                     os.makedirs(download_directory, exist_ok=True)
 
                     # Download the subtitle file
+                    # We use regular requests here for the file content as it might be a different domain or CDN
                     subtitle_response = requests.get(subtitle_url, stream=True)
                     subtitle_response.raise_for_status()
 
@@ -207,14 +207,20 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     # Write the new content to the file
                     with open(file_path, 'wb') as file:
                         file.write(new_content)
+                    updated_subs += 1
+        
+        if updated_subs > 0:
+            print(f"Downloaded/Updated {updated_subs} subtitle files.")
+        else:
+            print("All local subtitles are already up to date.")
                 
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         print(f"Error downloading subtitles: {e}")
                 
 
 def download_subtitles_for_folders(main_directory, recording_data):
     """Recursively download subtitles for all folders in the main directory."""
-    
+    print("Checking for missing subtitles...")
     # Get all directories to process
     all_folders = []
     for root, dirs, _ in os.walk(main_directory):
@@ -233,5 +239,9 @@ def download_subtitles_for_folders(main_directory, recording_data):
             
             if matching_recording and matching_recording.get('recording_data', {}).get('metadata', {}).get('has_subtitles', False):
                 recording_ids_with_subtitles.append((encora_id, folder_path))
+
+    if not recording_ids_with_subtitles:
+        print("No recordings found requiring subtitle downloads.")
+        return
 
     download_all_subtitles(recording_ids_with_subtitles)
