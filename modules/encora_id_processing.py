@@ -132,7 +132,7 @@ def process_encora_ids(encora_data, local_ids):
 
 def fetch_single_recording(encora_id, session=None):
     """Fetch details of a single recording."""
-    url = f"https://encora.it/api/recordings/{encora_id}"
+    url = f"https://encora.it/api/recording/{encora_id}"
     try:
         response = authenticated_request('GET', url, session=session)
         data = response.json()
