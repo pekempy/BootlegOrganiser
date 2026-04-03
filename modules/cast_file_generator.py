@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime
-from modules.diff_utils import append_to_diff_file
+from modules.diff_utils import append_to_diff_file, are_functionally_identical
 
 
 def strip_html_tags(text):
@@ -106,7 +106,7 @@ def write_cast_file(path, content, encora_id):
         with open(cast_file_path, 'r', encoding='utf-8') as file:
             existing_content = file.read()
         # Only proceed if the new content is different from the existing content
-        if content == existing_content:
+        if are_functionally_identical(content, existing_content):
             return False
         # Record the difference
         append_to_diff_file('cast_diffs.txt', encora_id, existing_content, content, os.path.join(path, 'Cast.txt'))

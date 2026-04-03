@@ -23,16 +23,8 @@ def remove_sorting_articles(name):
     return name
 
 def move_folders_to_processing(main_directory):
-    processing_directory = os.path.join(main_directory, '!processing')
-    if not os.path.exists(processing_directory):
-        os.makedirs(processing_directory)
-    
-    for folder in os.listdir(main_directory):
-        if folder != '!non-encora' and folder != '!processing':
-            source = os.path.join(main_directory, folder)
-            destination = os.path.join(processing_directory, folder)
-            if os.path.isdir(source):
-                shutil.move(source, destination)
+    # This function is no longer used but kept for backward compatibility if needed.
+    pass
 
 def format_date(date_info):
     full_date = date_info.get('full_date', None)
@@ -136,26 +128,28 @@ def format_show_folder(recording_data, encora_id, format_string, folder_name=Non
     return formatted_name
 
 def move_and_rename_folders(encora_data, main_directory):
-    processing_directory = os.path.join(main_directory, '!processing')
-
     show_directory_format = config.show_directory_format or '{show_name}/{tour}/{type}/{folder}'
     show_folder_format = config.show_folder_format or '[{date}] [{matinee}] [{nft}] {show_name} ~ {master} {encora_id}'
 
-    for entry in tqdm(encora_data, desc="Moving and Renaming Folders"):
-        path = entry['path']
+    # Sort by path length descending so children are processed before parents
+    encora_data_sorted = sorted(encora_data, key=lambda x: len(x['path']), reverse=True)
+    
+    for entry in tqdm(encora_data_sorted, desc="Moving and Renaming Folders"):
+        old_path = entry['path']
         recording_data = entry['recording_data']
         encora_id = entry['encora_id']
         
         show_folder = format_show_folder(recording_data, encora_id, show_folder_format)
         show_directory = format_show_folder(recording_data, encora_id, show_directory_format, folder_name=show_folder)
-
-        relative_path = os.path.relpath(path, start=processing_directory)
-        old_path = os.path.join(processing_directory, relative_path)
         
         if '{folder}' in show_directory_format:
             new_path = os.path.join(main_directory, show_directory)
         else:
             new_path = os.path.join(main_directory, show_directory, show_folder)
+        
+        # If old_path and new_path are the same, nothing to do
+        if os.path.normpath(old_path) == os.path.normpath(new_path):
+            continue
 
         # Ensure all directories in the new path exist
         try:

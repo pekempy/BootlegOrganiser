@@ -1,5 +1,6 @@
 import os
 import difflib
+import re
 
 def get_diff_file_path(filename):
     """
@@ -32,20 +33,70 @@ def log_missing_smalls(recording_id, show, tour, date, master):
         
         f.write(f"{str(recording_id):<15} | {str(show):<30} | {str(tour):<20} | {str(date):<20} | {str(master):<20}\n")
 
+def are_functionally_identical(content1, content2):
+    """
+    Checks if two strings (or bytes) are functionally identical,
+    ignoring line endings, trailing whitespace, and BOM.
+    """
+    if isinstance(content1, bytes):
+        try:
+            content1 = content1.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            content1 = content1.decode('utf-8', errors='ignore')
+    if isinstance(content2, bytes):
+        try:
+            content2 = content2.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            content2 = content2.decode('utf-8', errors='ignore')
+
+    def clean_content(content):
+        # Normalize line endings and strip whitespace
+        lines = [line.strip() for line in content.splitlines()]
+        
+        # Filter out Aegisub Project Garbage and empty lines
+        cleaned_lines = []
+        skip_section = False
+        for line in lines:
+            # Skip Aegisub garbage
+            if line == '[Aegisub Project Garbage]':
+                skip_section = True
+                continue
+            if skip_section and line.startswith('['):
+                skip_section = False
+            
+            if skip_section:
+                continue
+
+            # Ignore empty lines entirely for comparison
+            if not line:
+                continue
+            
+            # Normalize common time markers (e.g. 00:00:00.000 -> 00:00:00.00)
+            # This handles cases where one source has more decimal precision
+            line = re.sub(r'(\d+:\d+:\d+)\.(\d{2})\d*', r'\1.\2', line)
+            line = re.sub(r'(\d+:\d+)\.(\d{2})\d*', r'\1.\2', line)
+            
+            # Normalize all internal whitespace (collapse multiple spaces, tabs, non-breaking spaces)
+            line = ' '.join(line.split())
+            
+            # Remove minor punctuation differences that often vary between sources
+            # such as spaces after commas in time-markers or brackets
+            line = line.replace(', ', ',').replace(' ,', ',')
+            
+            cleaned_lines.append(line)
+        
+        return cleaned_lines
+
+    return clean_content(content1) == clean_content(content2)
+
 def append_to_diff_file(diff_file_name, recording_id, old_content, new_content, label):
     """
     Appends a unified diff between old_content and new_content to a diff file.
-    
-    Args:
-        diff_file_name (str): The filename of the diff file in the root directory.
-        recording_id (str): The Encora recording ID.
-        old_content (str/bytes): The original content of the file.
-        new_content (str/bytes): The updated content of the file.
-        label (str): A label for the file (e.g., its path relative to root or show name).
+    Only records changes that are not just whitespace or line ending differences.
     """
     diff_file_path = get_diff_file_path(diff_file_name)
     
-    # Ensure contents are safe for splitlines
+    # Ensure contents are strings
     if isinstance(old_content, bytes):
         try:
             old_content = old_content.decode('utf-8')
@@ -57,9 +108,16 @@ def append_to_diff_file(diff_file_name, recording_id, old_content, new_content, 
         except UnicodeDecodeError:
             new_content = repr(new_content)
 
-    old_lines = old_content.splitlines(keepends=True)
-    new_lines = new_content.splitlines(keepends=True)
+    # Normalize by stripping trailing whitespace and ignoring line endings
+    # We split into lines and then strip EACH line.
+    old_lines = [line.rstrip() for line in old_content.splitlines()]
+    new_lines = [line.rstrip() for line in new_content.splitlines()]
     
+    # If they are identical after normalization, they are effectively the same for the user
+    if old_lines == new_lines:
+        return
+
+    # Generate the diff with normalized lines
     diff = difflib.unified_diff(
         old_lines,
         new_lines,
@@ -75,5 +133,6 @@ def append_to_diff_file(diff_file_name, recording_id, old_content, new_content, 
             f.write(f"Recording ID: {recording_id}\n")
             f.write(f"File: {label}\n")
             f.write(f"{'-'*60}\n")
-            f.writelines(diff_text)
-            f.write("\n\n")
+            for line in diff_text:
+                f.write(line + "\n")
+            f.write("\n")

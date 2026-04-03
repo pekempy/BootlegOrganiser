@@ -25,14 +25,14 @@ def run_organiser():
     # Clear previous diff files
     clear_diff_files()
 
-    # Step 1: Move folders to '!processing'
-    move_folders_to_processing(main_directory)
+    # Step 1: Find Encora IDs and process them
+    # (Previously we moved everything to !processing, but now we work in-place)
+    # Step 1: Find Encora IDs and process them
 
     # Step 2: Handle '!non-encora' folder processing
     non_encora_folder = os.path.join(main_directory, '!non-encora')
     move_folders_with_ne(main_directory, non_encora_folder)
 
-    # Step 3: Find Encora IDs and process them
     print('Starting script...')
     print('This may take some time to fetch your collection from Encora...')
     local_ids = find_local_encora_ids(main_directory)
@@ -77,8 +77,9 @@ def run_organiser():
     # Step 6: Move and rename folders based on encora_data
     move_and_rename_folders(recording_data, main_directory)
 
-    # Step 7: Clean up the '!processing' folder if empty
-    clean_processing_folder(main_directory)
+    # Step 5: Clean up empty directories
+    from modules.cleanup_processing import delete_empty_directories
+    delete_empty_directories(main_directory)
 
     # Step 8: Download subtitles
     if config.redownload_subtitles:

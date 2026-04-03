@@ -6,7 +6,7 @@ import re
 import time
 from modules.config import config
 from modules.api_utils import authenticated_request
-from modules.diff_utils import append_to_diff_file
+from modules.diff_utils import append_to_diff_file, are_functionally_identical
 
 
 api_key = config.api_key
@@ -183,35 +183,76 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     # Get the ISO language code from the mapping
                     lang_code = language_code_mapping.get(subtitle['language'], subtitle['language'][:2].lower())
                     author_sanitised = subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '').replace(':', '-')
-                    file_name = f"{author_sanitised}.{lang_code}.{subtitle['file_type'].lower()}"
+                    
+                    # Use the unique subtitle ID to prevent collisions (e.g. for Act 1/Act 2 splits by same author)
+                    subtitle_id = subtitle.get('id')
+                    if subtitle_id:
+                        file_name = f"{author_sanitised} ({subtitle_id}).{lang_code}.{subtitle['file_type'].lower()}"
+                    else:
+                        file_name = f"{author_sanitised}.{lang_code}.{subtitle['file_type'].lower()}"
+                    
                     file_path = os.path.join(download_directory, file_name)
 
                     # Ensure the download directory exists
                     os.makedirs(download_directory, exist_ok=True)
 
                     # Download the subtitle file
-                    # We use regular requests here for the file content as it might be a different domain or CDN
-                    subtitle_response = requests.get(subtitle_url, stream=True)
-                    subtitle_response.raise_for_status()
-
-                    # Calculate the hash of the new content
-                    new_content_hash = hashlib.sha256()
+                    try:
+                        subtitle_response = requests.get(subtitle_url, stream=True, timeout=10)
+                        subtitle_response.raise_for_status()
+                    except (requests.exceptions.RequestException, requests.exceptions.Timeout) as e:
+                        print(f"\nSkipping subtitle due to download error: {e}")
+                        continue
                     new_content = subtitle_response.content
-                    new_content_hash.update(new_content)
-                    new_content_hash = new_content_hash.hexdigest()
 
-                    # Check if the file exists and compare the content
-                    if os.path.exists(file_path):
-                        existing_content_hash = file_content_hash(file_path)
-                        if existing_content_hash == new_content_hash:
-                            continue  # Skip writing the file if the content is the same
-                        
-                        # Record the difference
-                        with open(file_path, 'rb') as f:
-                            existing_content = f.read()
-                        append_to_diff_file('subtitle_diffs.txt', recording_id, existing_content, new_content, file_path)
+                    # Check if ANY existing file in the directory matches this content
+                    is_already_present = False
+                    existing_matching_file = None
+                    
+                    subtitle_extensions = ('.ass', '.srt', '.vtt', '.sub', '.sbv')
+                    for item in os.listdir(download_directory):
+                        if item.lower().endswith(subtitle_extensions):
+                            existing_file_path = os.path.join(download_directory, item)
+                            try:
+                                with open(existing_file_path, 'rb') as f:
+                                    existing_content_bytes = f.read()
+                                
+                                if are_functionally_identical(existing_content_bytes, new_content):
+                                    is_already_present = True
+                                    existing_matching_file = existing_file_path
+                                    break
+                            except Exception:
+                                continue
+
+                    if is_already_present:
+                        # Content already exists locally under some name, skip
+                        continue
+
+                    # If not present, prepare the filename
+                    # Look for "Act" or "Part" in the subtitle description if available
+                    content_note = ""
+                    note = subtitle.get('notes', '') or ''
+                    act_match = re.search(r'(Act\s*\d+|Part\s*\d+)', note, re.I)
+                    if act_match:
+                        content_note = f"_{act_match.group(1).replace(' ', '')}"
+                    
+                    # Try to find a unique ID (Encora uses 'id' or 'subtitle_id' in different contexts)
+                    sub_uid = subtitle.get('id') or subtitle.get('subtitle_id')
+                    if not sub_uid:
+                        # Use a stable hash of the URL if no ID is provided by the API
+                        sub_uid = hashlib.md5(subtitle_url.encode()).hexdigest()[:8]
+                    
+                    # Generate a unique filename that won't overwrite unless it's a perfect match
+                    file_name = f"{author_sanitised}{content_note}_{sub_uid}.{lang_code}.{subtitle['file_type'].lower()}"
+                    file_path = os.path.join(download_directory, file_name)
 
                     # Write the new content to the file
+                    if os.path.exists(file_path):
+                        # Record the difference before overwriting
+                        with open(file_path, 'rb') as f:
+                            old_content_bytes = f.read()
+                        append_to_diff_file('subtitle_diffs.txt', recording_id, old_content_bytes, new_content, file_path)
+
                     with open(file_path, 'wb') as file:
                         file.write(new_content)
                     updated_subs += 1
