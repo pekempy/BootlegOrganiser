@@ -1,6 +1,8 @@
 import os
 import re
 from datetime import datetime
+from modules.diff_utils import append_to_diff_file
+
 
 def strip_html_tags(text):
     """Remove HTML tags from a string."""
@@ -97,7 +99,7 @@ def generate_template(recording_data):
 
     return template
 
-def write_cast_file(path, content):
+def write_cast_file(path, content, encora_id):
     cast_file_path = os.path.join(path, 'Cast.txt')
     # Check if the file exists and read its content
     if os.path.exists(cast_file_path):
@@ -106,6 +108,9 @@ def write_cast_file(path, content):
         # Only proceed if the new content is different from the existing content
         if content == existing_content:
             return False
+        # Record the difference
+        append_to_diff_file('cast_diffs.txt', encora_id, existing_content, content, os.path.join(path, 'Cast.txt'))
+        
     with open(cast_file_path, 'w', encoding='utf-8') as file:
         file.write(content)
     return True
@@ -127,7 +132,7 @@ def create_cast_files(encora_data):
         # Generate template
         template = generate_template(recording_data)
         # Write to Cast.txt
-        if write_cast_file(path, template):
+        if write_cast_file(path, template, encora_id):
             updated_count += 1
             
     if updated_count > 0:

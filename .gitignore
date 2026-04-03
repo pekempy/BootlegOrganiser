@@ -4,3 +4,7 @@ on_encora_not_local.txt
 on_encora_not_local_details.csv
 local_not_on_encora.txt
 local_not_on_encora_details.csv
+cast_diffs.txt
+subtitle_diffs.txt
+missing_smalls.txt
+

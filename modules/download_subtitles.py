@@ -6,6 +6,8 @@ import re
 import time
 from modules.config import config
 from modules.api_utils import authenticated_request
+from modules.diff_utils import append_to_diff_file
+
 
 api_key = config.api_key
 
@@ -203,6 +205,11 @@ def download_all_subtitles(recording_ids_with_subtitles):
                         existing_content_hash = file_content_hash(file_path)
                         if existing_content_hash == new_content_hash:
                             continue  # Skip writing the file if the content is the same
+                        
+                        # Record the difference
+                        with open(file_path, 'rb') as f:
+                            existing_content = f.read()
+                        append_to_diff_file('subtitle_diffs.txt', recording_id, existing_content, new_content, file_path)
 
                     # Write the new content to the file
                     with open(file_path, 'wb') as file:

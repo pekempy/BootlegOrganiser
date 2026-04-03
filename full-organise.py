@@ -11,6 +11,8 @@ from modules.encora_id_processing import fetch_collection, find_local_encora_ids
 from modules.cast_file_generator import create_cast_files, create_encora_id_files
 from modules.move_and_rename_folders import move_folders_to_processing, move_and_rename_folders
 from modules.manage_file_sizes import process_directory, send_format
+from modules.diff_utils import clear_diff_files, log_missing_smalls
+
 
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -19,6 +21,9 @@ def run_organiser():
     if main_directory is None:
         print("Error: BOOTLEG_MAIN_DIRECTORY not found in config.")
         return
+
+    # Clear previous diff files
+    clear_diff_files()
 
     # Step 1: Move folders to '!processing'
     move_folders_to_processing(main_directory)
@@ -50,6 +55,16 @@ def run_organiser():
             continue
         summary = process_directory(folder_path)  
         if(summary):
+            if "VOB (no smalls)" in summary:
+                matching_recording = next((item for item in recording_data if str(item['encora_id']) == str(encora_id)), None)
+                if matching_recording:
+                    rec_data = matching_recording.get('recording_data', {})
+                    show = rec_data.get('show', 'Unknown Show')
+                    tour = rec_data.get('tour', 'Unknown Tour')
+                    date = rec_data.get('date', {}).get('full_date', 'Unknown Date')
+                    master = rec_data.get('master', 'Unknown Master')
+                    log_missing_smalls(encora_id, show, tour, date, master)
+
             # Update encora formats _if_ the current format doesn't match what is local
             if send_format(recording_data, encora_id, summary):
                 updated_formats_count += 1
