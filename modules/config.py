@@ -30,6 +30,10 @@ class Config:
         return self.get('GENERATE_ENCORAID_FILES', 'false').lower() == 'true'
 
     @property
+    def update_encora_format(self):
+        return self.get('UPDATE_ENCORA_FORMAT', 'true').lower() == 'true'
+
+    @property
     def redownload_subtitles(self):
         return self.get('REDOWNLOAD_SUBTITLES', 'false').lower() == 'true'
 

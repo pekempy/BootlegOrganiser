@@ -320,10 +320,12 @@ class ConfigGUI:
         
         self.cast_files_var = tk.BooleanVar()
         self.encora_id_files_var = tk.BooleanVar()
+        self.update_format_var = tk.BooleanVar()
         self.redownload_subs_var = tk.BooleanVar()
         
         for text, var in [("Generate Cast Files", self.cast_files_var), 
                          ("Generate ID Files", self.encora_id_files_var),
+                         ("Update Format on Encora", self.update_format_var),
                          ("Always Redownload Subtitles", self.redownload_subs_var)]:
             tk.Checkbutton(opt_frame, text=text, variable=var, bg=CARD_COLOUR, fg=TEXT_COLOUR, 
                           selectcolor=ACCENT_BLUE, activebackground=CARD_COLOUR, activeforeground=TEXT_COLOUR,
@@ -524,6 +526,7 @@ class ConfigGUI:
         self.main_dir_var.set(config.main_directory or "")
         self.cast_files_var.set(config.generate_cast_files)
         self.encora_id_files_var.set(config.generate_encoraid_files)
+        self.update_format_var.set(config.update_encora_format)
         self.redownload_subs_var.set(config.redownload_subtitles)
         self.folder_builder.set_format(config.show_folder_format)
         self.dir_builder.set_format(config.show_directory_format)
@@ -545,6 +548,7 @@ class ConfigGUI:
         config.set('BOOTLEG_MAIN_DIRECTORY', self.main_dir_var.get())
         config.set('GENERATE_CAST_FILES', str(self.cast_files_var.get()).lower())
         config.set('GENERATE_ENCORAID_FILES', str(self.encora_id_files_var.get()).lower())
+        config.set('UPDATE_ENCORA_FORMAT', str(self.update_format_var.get()).lower())
         config.set('REDOWNLOAD_SUBTITLES', str(self.redownload_subs_var.get()).lower())
         config.set('SHOW_FOLDER_FORMAT', self.folder_builder.get_format())
         config.set('SHOW_DIRECTORY_FORMAT', self.dir_builder.get_format())

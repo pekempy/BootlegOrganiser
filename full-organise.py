@@ -48,11 +48,13 @@ def run_organiser():
         print(f"Generating .encora-id files for {len(recording_data)} recordings")
         create_encora_id_files(recording_data)
 
-    # Step 5: Evaluate file sizes
+    # Step 5: Evaluate file sizes and update Encora format
     updated_formats_count = 0
-    for encora_id, folder_path in tqdm.tqdm(local_ids, desc="Updating non-matching Encora Formats...", unit="ID"):
+    desc = "Updating non-matching Encora Formats..." if config.update_encora_format else "Evaluating file sizes..."
+    for encora_id, folder_path in tqdm.tqdm(local_ids, desc=desc, unit="ID"):
         if config.exclude_format_update and str(encora_id) in config.excluded_ids:
             continue
+
         summary = process_directory(folder_path)  
         if(summary):
             if "VOB (no smalls)" in summary:
@@ -65,9 +67,10 @@ def run_organiser():
                     master = rec_data.get('master', 'Unknown Master')
                     log_missing_smalls(encora_id, show, tour, date, master)
 
-            # Update encora formats _if_ the current format doesn't match what is local
-            if send_format(recording_data, encora_id, summary):
-                updated_formats_count += 1
+            # Update encora formats _if_ enabled and the current format doesn't match what is local
+            if config.update_encora_format:
+                if send_format(recording_data, encora_id, summary):
+                    updated_formats_count += 1
     
     if updated_formats_count > 0:
         print(f"Updated formats for {updated_formats_count} recordings.")
