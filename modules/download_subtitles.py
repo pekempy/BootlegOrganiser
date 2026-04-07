@@ -180,19 +180,37 @@ def download_all_subtitles(recording_ids_with_subtitles):
 
                 for subtitle in subtitles:
                     subtitle_url = subtitle['url']
-                    # Get the ISO language code from the mapping
+                    # Prepare the filename
                     lang_code = language_code_mapping.get(subtitle['language'], subtitle['language'][:2].lower())
-                    author_sanitised = subtitle['author'].replace(' ', '_').replace('/', ' ').replace('\\', '').replace(':', '-')
+                    author = subtitle.get('author', 'Unknown')
+                    # Sanitise author name for filesystem
+                    author_sanitised = re.sub(r'[<>:"/\\|?*]', '_', author).strip()
                     
-                    # Use the unique subtitle ID to prevent collisions (e.g. for Act 1/Act 2 splits by same author)
-                    subtitle_id = subtitle.get('id')
-                    if subtitle_id:
-                        file_name = f"{author_sanitised} ({subtitle_id}).{lang_code}.{subtitle['file_type'].lower()}"
+                    # Determine Coverage
+                    coverage = subtitle.get('coverage', '')
+                    if coverage:
+                        # Format "act-1" to "Act 1", "complete" to "Complete"
+                        formatted_coverage = coverage.replace('-', ' ').title()
+                        coverage_str = f" [{formatted_coverage}]"
                     else:
-                        file_name = f"{author_sanitised}.{lang_code}.{subtitle['file_type'].lower()}"
-                    
-                    file_path = os.path.join(download_directory, file_name)
+                        # Fallback to notes parsing
+                        note = subtitle.get('notes', '') or ''
+                        act_match = re.search(r'(Act\s*\d+|Part\s*\d+)', note, re.I)
+                        if act_match:
+                            coverage_str = f" [{act_match.group(1).title()}]"
+                        else:
+                            coverage_str = ""
 
+                    # Try to find a unique ID (Encora uses 'id' or 'subtitle_id' in different contexts)
+                    sub_uid = subtitle.get('id') or subtitle.get('subtitle_id')
+                    if not sub_uid:
+                        # Use a stable hash of the URL if no ID is provided by the API
+                        sub_uid = hashlib.md5(subtitle_url.encode()).hexdigest()[:8]
+                    
+                    # Generate a unique filename: Author [Coverage] {Hash}.lang.ext
+                    ext = subtitle['file_type'].lower()
+                    file_name = f"{author_sanitised}{coverage_str} {{{sub_uid}}}.{lang_code}.{ext}"
+                    file_path = os.path.join(download_directory, file_name)
                     # Ensure the download directory exists
                     os.makedirs(download_directory, exist_ok=True)
 
@@ -207,8 +225,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
 
                     # Check if ANY existing file in the directory matches this content
                     is_already_present = False
-                    existing_matching_file = None
-                    
+                    existing_matching_file_path = None
                     subtitle_extensions = ('.ass', '.srt', '.vtt', '.sub', '.sbv')
                     for item in os.listdir(download_directory):
                         if item.lower().endswith(subtitle_extensions):
@@ -219,32 +236,20 @@ def download_all_subtitles(recording_ids_with_subtitles):
                                 
                                 if are_functionally_identical(existing_content_bytes, new_content):
                                     is_already_present = True
-                                    existing_matching_file = existing_file_path
+                                    existing_matching_file_path = existing_file_path
                                     break
                             except Exception:
                                 continue
 
                     if is_already_present:
-                        # Content already exists locally under some name, skip
+                        # If the content matches but the name is different, rename to standard
+                        if os.path.basename(existing_matching_file_path) != file_name:
+                            try:
+                                os.rename(existing_matching_file_path, file_path)
+                                updated_subs += 1
+                            except Exception as e:
+                                print(f"Error renaming local subtitle: {e}")
                         continue
-
-                    # If not present, prepare the filename
-                    # Look for "Act" or "Part" in the subtitle description if available
-                    content_note = ""
-                    note = subtitle.get('notes', '') or ''
-                    act_match = re.search(r'(Act\s*\d+|Part\s*\d+)', note, re.I)
-                    if act_match:
-                        content_note = f"_{act_match.group(1).replace(' ', '')}"
-                    
-                    # Try to find a unique ID (Encora uses 'id' or 'subtitle_id' in different contexts)
-                    sub_uid = subtitle.get('id') or subtitle.get('subtitle_id')
-                    if not sub_uid:
-                        # Use a stable hash of the URL if no ID is provided by the API
-                        sub_uid = hashlib.md5(subtitle_url.encode()).hexdigest()[:8]
-                    
-                    # Generate a unique filename that won't overwrite unless it's a perfect match
-                    file_name = f"{author_sanitised}{content_note}_{sub_uid}.{lang_code}.{subtitle['file_type'].lower()}"
-                    file_path = os.path.join(download_directory, file_name)
 
                     # Write the new content to the file
                     if os.path.exists(file_path):
