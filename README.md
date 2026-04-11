@@ -1,3 +1,4 @@
+![Health](https://oss-health-monitor.vercel.app/api/badge/pekempy/bootlegorganiser)
 # Bootleg Organiser
 
 Bootleg Organiser is a Python tool designed to keep your local bootleg collection structured, synchronised, and consistently named based on data from Encora.
