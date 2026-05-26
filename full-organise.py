@@ -14,8 +14,6 @@ from modules.manage_file_sizes import process_directory, send_format
 from modules.diff_utils import clear_diff_files, log_missing_smalls
 
 
-sys.stdout.reconfigure(line_buffering=True)
-
 def run_organiser():
     main_directory = config.main_directory
     if main_directory is None:

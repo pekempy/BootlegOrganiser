@@ -160,8 +160,12 @@ def download_all_subtitles(recording_ids_with_subtitles):
     subtitles_url = f"https://encora.it/api/subtitles/{ids_str}"
     headers = {'Authorization': f'Bearer {api_key}', "User-Agent": "BootOrganiser"}
     
+    # Initialize a unified session for connection pooling, reuse, and retries
+    session = requests.Session()
+    session.headers.update(headers)
+    
     try:
-        response = authenticated_request('GET', subtitles_url, headers=headers)
+        response = authenticated_request('GET', subtitles_url, session=session)
         subtitles_data = response.json()
 
         # Group subtitles by recording_id
@@ -214,11 +218,13 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     # Ensure the download directory exists
                     os.makedirs(download_directory, exist_ok=True)
 
-                    # Download the subtitle file
+                    # Download the subtitle file using robust authenticated_request
                     try:
-                        subtitle_response = requests.get(subtitle_url, stream=True, timeout=10)
-                        subtitle_response.raise_for_status()
-                    except (requests.exceptions.RequestException, requests.exceptions.Timeout) as e:
+                        subtitle_response = authenticated_request('GET', subtitle_url, session=session, timeout=15)
+                        if subtitle_response is None:
+                            print(f"\nSkipping subtitle due to empty download response: {subtitle_url}")
+                            continue
+                    except Exception as e:
                         print(f"\nSkipping subtitle due to download error: {e}")
                         continue
                     new_content = subtitle_response.content
