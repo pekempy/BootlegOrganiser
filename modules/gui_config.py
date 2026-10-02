@@ -321,15 +321,23 @@ class ConfigGUI:
         self.cast_files_var = tk.BooleanVar()
         self.encora_id_files_var = tk.BooleanVar()
         self.update_format_var = tk.BooleanVar()
+        self.dont_override_format_var = tk.BooleanVar()
         self.redownload_subs_var = tk.BooleanVar()
+        self.checksum_files_var = tk.BooleanVar()
         
         for text, var in [("Generate Cast Files", self.cast_files_var), 
                          ("Generate ID Files", self.encora_id_files_var),
                          ("Update Format on Encora", self.update_format_var),
-                         ("Always Redownload Subtitles", self.redownload_subs_var)]:
+                         ("Don't Override Existing Encora Formats", self.dont_override_format_var),
+                         ("Always Redownload Subtitles", self.redownload_subs_var),
+                         ("Generate Checksums", self.checksum_files_var)]:
             tk.Checkbutton(opt_frame, text=text, variable=var, bg=CARD_COLOUR, fg=TEXT_COLOUR, 
                           selectcolor=ACCENT_BLUE, activebackground=CARD_COLOUR, activeforeground=TEXT_COLOUR,
                           font=("Segoe UI", 9)).pack(anchor=tk.W, pady=2)
+        tk.Label(opt_frame, text="\u26a0 Checksums: first run reads your whole library once to hash it "
+                 "-- roughly 5 hrs per TB on spinning disks (much faster on SSD). Only new/changed files "
+                 "are re-hashed after that, so later runs are quick.",
+                 bg=CARD_COLOUR, fg=MUTED_TEXT, font=("Segoe UI", 8), justify=tk.LEFT, wraplength=480).pack(anchor=tk.W, pady=(6, 0))
         # --- Tab 2: Directory Settings ---
         self.create_label(tab_dir, "Main Directory", ("Segoe UI", 11, "bold")).pack(anchor=tk.W, pady=(0, 10))
         row_dir = tk.Frame(tab_dir, bg=BG_COLOUR)
@@ -436,9 +444,12 @@ class ConfigGUI:
         excl_opt.pack(fill=tk.X, pady=10)
         self.excl_format_var = tk.BooleanVar()
         self.excl_cast_var = tk.BooleanVar()
+        self.excl_checksum_var = tk.BooleanVar()
         tk.Checkbutton(excl_opt, text="Skip Format Update", variable=self.excl_format_var, bg=CARD_COLOUR, fg=TEXT_COLOUR,
                        selectcolor=ACCENT_BLUE, font=("Segoe UI", 9)).pack(side=tk.LEFT, padx=(0, 15))
         tk.Checkbutton(excl_opt, text="Skip Cast.txt", variable=self.excl_cast_var, bg=CARD_COLOUR, fg=TEXT_COLOUR,
+                       selectcolor=ACCENT_BLUE, font=("Segoe UI", 9)).pack(side=tk.LEFT, padx=(0, 15))
+        tk.Checkbutton(excl_opt, text="Skip Checksums", variable=self.excl_checksum_var, bg=CARD_COLOUR, fg=TEXT_COLOUR,
                        selectcolor=ACCENT_BLUE, font=("Segoe UI", 9)).pack(side=tk.LEFT)
 
         # --- Footer ---
@@ -527,12 +538,15 @@ class ConfigGUI:
         self.cast_files_var.set(config.generate_cast_files)
         self.encora_id_files_var.set(config.generate_encoraid_files)
         self.update_format_var.set(config.update_encora_format)
+        self.dont_override_format_var.set(config.dont_override_encora_format)
         self.redownload_subs_var.set(config.redownload_subtitles)
+        self.checksum_files_var.set(config.generate_checksums)
         self.folder_builder.set_format(config.show_folder_format)
         self.dir_builder.set_format(config.show_directory_format)
         self.excluded_ids_var.set(", ".join(config.excluded_ids))
         self.excl_format_var.set(config.exclude_format_update)
         self.excl_cast_var.set(config.exclude_cast_files)
+        self.excl_checksum_var.set(config.exclude_checksum_files)
         
         self.date_cont_var.set(config.date_container)
         self.nft_cont_var.set(config.nft_container)
@@ -549,12 +563,15 @@ class ConfigGUI:
         config.set('GENERATE_CAST_FILES', str(self.cast_files_var.get()).lower())
         config.set('GENERATE_ENCORAID_FILES', str(self.encora_id_files_var.get()).lower())
         config.set('UPDATE_ENCORA_FORMAT', str(self.update_format_var.get()).lower())
+        config.set('DONT_OVERRIDE_ENCORA_FORMAT', str(self.dont_override_format_var.get()).lower())
         config.set('REDOWNLOAD_SUBTITLES', str(self.redownload_subs_var.get()).lower())
+        config.set('GENERATE_CHECKSUMS', str(self.checksum_files_var.get()).lower())
         config.set('SHOW_FOLDER_FORMAT', self.folder_builder.get_format())
         config.set('SHOW_DIRECTORY_FORMAT', self.dir_builder.get_format())
         config.set('EXCLUDED_IDS', self.excluded_ids_var.get())
         config.set('EXCLUDE_FORMAT_UPDATE', str(self.excl_format_var.get()).lower())
         config.set('EXCLUDE_CAST_FILES', str(self.excl_cast_var.get()).lower())
+        config.set('EXCLUDE_CHECKSUM_FILES', str(self.excl_checksum_var.get()).lower())
         
         config.set('DATE_CONTAINER', self.date_cont_var.get())
         config.set('NFT_CONTAINER', self.nft_cont_var.get())

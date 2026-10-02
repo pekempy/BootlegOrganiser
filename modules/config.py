@@ -34,8 +34,16 @@ class Config:
         return self.get('UPDATE_ENCORA_FORMAT', 'true').lower() == 'true'
 
     @property
+    def dont_override_encora_format(self):
+        return self.get('DONT_OVERRIDE_ENCORA_FORMAT', 'false').lower() == 'true'
+
+    @property
     def redownload_subtitles(self):
         return self.get('REDOWNLOAD_SUBTITLES', 'false').lower() == 'true'
+
+    @property
+    def generate_checksums(self):
+        return self.get('GENERATE_CHECKSUMS', 'false').lower() == 'true'
 
     @property
     def collection_page_size(self):
@@ -61,6 +69,10 @@ class Config:
     @property
     def exclude_cast_files(self):
         return self.get('EXCLUDE_CAST_FILES', 'false').lower() == 'true'
+
+    @property
+    def exclude_checksum_files(self):
+        return self.get('EXCLUDE_CHECKSUM_FILES', 'false').lower() == 'true'
 
     @property
     def date_container(self):

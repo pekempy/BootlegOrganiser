@@ -135,7 +135,11 @@ def send_format(recording_data, encora_id, media_summary):
         return
 
     if matching_recording.get('my_format') == media_summary:
-        return
+        return False
+
+    # If 'don't override' is set, skip updating when Encora already has a format
+    if config.dont_override_encora_format and matching_recording.get('my_format'):
+        return False
 
     # Update format if it doesn't match
     url = f"https://encora.it/api/collection/{encora_id}/format/{urllib.parse.quote_plus(media_summary)}"
