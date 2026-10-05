@@ -155,18 +155,21 @@ def download_all_subtitles(recording_ids_with_subtitles):
 
     # Extract all recording IDs
     recording_ids = [item[0] for item in recording_ids_with_subtitles]
-    ids_str = ','.join(recording_ids)
-    
-    subtitles_url = f"https://encora.it/api/subtitles/{ids_str}"
     headers = {'Authorization': f'Bearer {api_key}', "User-Agent": "BootOrganiser"}
-    
+
     # Initialize a unified session for connection pooling, reuse, and retries
     session = requests.Session()
     session.headers.update(headers)
-    
+
+    # Batch into chunks - sending too many IDs at once causes a server 500
+    CHUNK_SIZE = 25
     try:
-        response = authenticated_request('GET', subtitles_url, session=session)
-        subtitles_data = response.json()
+        subtitles_data = []
+        for i in range(0, len(recording_ids), CHUNK_SIZE):
+            chunk = recording_ids[i:i + CHUNK_SIZE]
+            subtitles_url = f"https://encora.it/api/subtitles/{','.join(chunk)}"
+            response = authenticated_request('GET', subtitles_url, session=session)
+            subtitles_data.extend(response.json())
 
         # Group subtitles by recording_id
         subtitles_by_recording_id = {}
