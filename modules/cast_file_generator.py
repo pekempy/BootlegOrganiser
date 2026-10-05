@@ -103,8 +103,15 @@ def write_cast_file(path, content, encora_id):
     cast_file_path = os.path.join(path, 'Cast.txt')
     # Check if the file exists and read its content
     if os.path.exists(cast_file_path):
-        with open(cast_file_path, 'r', encoding='utf-8') as file:
-            existing_content = file.read()
+        try:
+            with open(cast_file_path, 'r', encoding='utf-8') as file:
+                existing_content = file.read()
+        except UnicodeDecodeError:
+            # File isn't UTF-8 - re-encode it in place, then read the clean version
+            with open(cast_file_path, 'r', encoding='latin-1') as file:
+                existing_content = file.read()
+            with open(cast_file_path, 'w', encoding='utf-8') as file:
+                file.write(existing_content)
         # Only proceed if the new content is different from the existing content
         if are_functionally_identical(content, existing_content):
             return False
@@ -129,9 +136,7 @@ def create_cast_files(encora_data):
             continue
             
         recording_data = entry['recording_data']
-        # Generate template
         template = generate_template(recording_data)
-        # Write to Cast.txt
         if write_cast_file(path, template, encora_id):
             updated_count += 1
             
