@@ -9,7 +9,16 @@ from modules.download_subtitles import download_subtitles_for_folders
 from modules.non_encora_processing import move_folders_with_ne
 from modules.encora_id_processing import fetch_collection, find_local_encora_ids, process_encora_ids
 from modules.cast_file_generator import create_cast_files, create_encora_id_files
-from modules.checksum_generator import create_checksum_files, verify_all_checksums
+try:
+    from modules.checksum_generator import create_checksum_files, verify_all_checksums
+    _CHECKSUM_AVAILABLE = True
+except ImportError:
+    _CHECKSUM_AVAILABLE = False
+    def create_checksum_files(*a, **kw):
+        print("Warning: checksum_generator module not found — skipping checksum generation.")
+    def verify_all_checksums(*a, **kw):
+        print("Warning: checksum_generator module not found — cannot verify checksums.")
+        return 0, 0
 from modules.move_and_rename_folders import move_folders_to_processing, move_and_rename_folders
 from modules.manage_file_sizes import process_directory, send_format
 from modules.diff_utils import clear_diff_files, log_missing_smalls

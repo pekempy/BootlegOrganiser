@@ -176,8 +176,20 @@ def move_and_rename_folders(encora_data, main_directory):
                     except FileNotFoundError as e:
                         print(f"FileNotFoundError: {e}")
             
+            # macOS Finder silently creates .DS_Store (and similar) in every
+            # visited folder.  Remove known system-only files before testing
+            # whether the source directory is now empty.
+            _MACOS_JUNK = {'.DS_Store', '.localized', '__MACOSX'}
+            for junk in list(os.listdir(old_path)):
+                if junk in _MACOS_JUNK or junk.startswith('._'):
+                    try:
+                        junk_path = os.path.join(old_path, junk)
+                        if os.path.isfile(junk_path):
+                            os.remove(junk_path)
+                    except OSError:
+                        pass
             try:
-                if not os.listdir(old_path):  # Ensure the directory is empty before removal
+                if not os.listdir(old_path):
                     os.rmdir(old_path)
                 else:
                     print(f"Directory '{old_path}' is not empty.")
