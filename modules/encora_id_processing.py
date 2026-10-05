@@ -115,6 +115,20 @@ def process_encora_ids(encora_data, local_ids):
                 
                 fetched_recording = fetch_single_recording(encora_id, session)
                 if fetched_recording:
+                    # Detect merges: API follows the redirect and returns the new recording's ID
+                    returned_id = str(fetched_recording.get('id', encora_id))
+                    if returned_id != str(encora_id):
+                        folder_name = os.path.basename(path)
+                        tqdm.write(
+                            f"\n\033[93m{'='*60}\n"
+                            f"  ⚠  RECORDING MERGED\n"
+                            f"{'='*60}\033[0m\n"
+                            f"  Folder : {folder_name}\n"
+                            f"  Old ID : {encora_id}  →  \033[92mNew ID : {returned_id}\033[0m\n"
+                            f"  Rename  e-{encora_id}  to  e-{returned_id}  in your folder name\n"
+                            f"  \033[96mhttps://encora.it/recordings/{returned_id}\033[0m\n"
+                            f"\033[93m{'='*60}\033[0m\n"
+                        )
                     encora_data.append({'recording': fetched_recording, 'format': ""})
                     results.append({
                         'encora_id': encora_id,
@@ -131,12 +145,14 @@ def process_encora_ids(encora_data, local_ids):
     return results
 
 def fetch_single_recording(encora_id, session=None):
-    """Fetch details of a single recording."""
+    """Fetch details of a single recording. If the recording was merged into another,
+    the API redirects to the new ID and the returned recording's id will differ from
+    encora_id — the caller is responsible for detecting and surfacing that."""
     url = f"https://encora.it/api/recording/{encora_id}"
     try:
         response = authenticated_request('GET', url, session=session)
         data = response.json()
-        return data.get('recording') or data # Wrap for different response shapes if needed
+        return data.get('recording') or data
     except Exception as e:
         print(f"\nError fetching recording {encora_id}: {e}")
         return None
