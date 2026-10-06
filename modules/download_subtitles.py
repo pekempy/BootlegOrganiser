@@ -286,6 +286,11 @@ def download_subtitles_for_folders(main_directory, recording_data):
     # Get all directories to process
     all_folders = []
     for root, dirs, _ in os.walk(main_directory):
+        dirs[:] = [
+            d for d in dirs
+            if not d.startswith('.')
+            and not os.path.islink(os.path.join(root, d))
+        ]
         for folder_name in dirs:
             all_folders.append(os.path.join(root, folder_name))
 

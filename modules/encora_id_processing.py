@@ -15,6 +15,12 @@ def find_local_encora_ids(main_directory):
     
     # Loop through all subfolders in main_directory
     for root, dirs, _ in os.walk(main_directory):
+        # Ignore hidden/system folders (e.g. .Trash-1000, .git) and symbolic links
+        dirs[:] = [
+            d for d in dirs
+            if not d.startswith('.')
+            and not os.path.islink(os.path.join(root, d))
+        ]
         for dir_name in dirs:
             folder_path = os.path.join(root, dir_name)
             encora_id = None

@@ -3,6 +3,11 @@ import shutil
 
 def folder_exists_in_non_encora(folder_name, base_path):
     for root, dirs, _ in os.walk(base_path):
+        dirs[:] = [
+            d for d in dirs
+            if not d.startswith('.')
+            and not os.path.islink(os.path.join(root, d))
+        ]
         if folder_name in dirs:
             return True
     return False
@@ -15,6 +20,11 @@ def move_folders_with_ne(main_directory, non_encora_folder):
 
     # Loop through all subfolders in main_directory
     for root, dirs, _ in os.walk(main_directory):
+        dirs[:] = [
+            d for d in dirs
+            if not d.startswith('.')
+            and not os.path.islink(os.path.join(root, d))
+        ]
         for dir_name in dirs:
             if '{ne}' in dir_name:
                 # Paths

@@ -127,6 +127,42 @@ def format_show_folder(recording_data, encora_id, format_string, folder_name=Non
 
     return formatted_name
 
+def move_merge(src, dst):
+    """Move src to dst. If both are directories, recursively move contents so src merges into dst without nesting."""
+    if os.path.islink(src):
+        # Don't move symlinks that point back into src or dst ancestors
+        try:
+            target = os.path.realpath(src)
+            if target == os.path.realpath(dst) or target.startswith(os.path.realpath(dst) + os.sep):
+                return
+        except Exception:
+            pass
+        if os.path.lexists(dst):
+            try:
+                os.remove(dst)
+            except OSError:
+                pass
+        shutil.move(src, dst)
+        return
+
+    if os.path.isdir(src):
+        if not os.path.exists(dst):
+            shutil.move(src, dst)
+        else:
+            for entry in os.listdir(src):
+                move_merge(os.path.join(src, entry), os.path.join(dst, entry))
+            try:
+                os.rmdir(src)
+            except OSError:
+                pass
+    else:
+        if os.path.lexists(dst):
+            try:
+                os.remove(dst)
+            except OSError:
+                pass
+        shutil.move(src, dst)
+
 def move_and_rename_folders(encora_data, main_directory):
     show_directory_format = config.show_directory_format or '{show_name}/{tour}/{type}/{folder}'
     show_folder_format = config.show_folder_format or '[{date}] [{matinee}] [{nft}] {show_name} ~ {master} {encora_id}'
@@ -147,8 +183,12 @@ def move_and_rename_folders(encora_data, main_directory):
         else:
             new_path = os.path.join(main_directory, show_directory, show_folder)
         
-        # If old_path and new_path are the same, nothing to do
-        if os.path.normpath(old_path) == os.path.normpath(new_path):
+        # If old_path and new_path resolve to the same location, nothing to do
+        if os.path.normpath(old_path) == os.path.normpath(new_path) or os.path.realpath(old_path) == os.path.realpath(new_path):
+            continue
+
+        # Skip if old_path itself is a symlink
+        if os.path.islink(old_path):
             continue
 
         # Ensure all directories in the new path exist
@@ -164,17 +204,10 @@ def move_and_rename_folders(encora_data, main_directory):
                 src = os.path.join(old_path, item)
                 dst = os.path.join(new_path, item)
 
-                if os.path.isdir(src):
-                    try:
-                        shutil.move(src, dst)
-                    except FileNotFoundError as e:
-                        print(f"FileNotFoundError: {e}")
-                else:
-                    try:
-                        # Overwrite existing file if it exists
-                        shutil.move(src, dst)
-                    except FileNotFoundError as e:
-                        print(f"FileNotFoundError: {e}")
+                try:
+                    move_merge(src, dst)
+                except (FileNotFoundError, shutil.Error, OSError) as e:
+                    print(f"Error moving {src} to {dst}: {e}")
             
             # macOS Finder silently creates .DS_Store (and similar) in every
             # visited folder.  Remove known system-only files before testing

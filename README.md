@@ -23,6 +23,13 @@ python3 full-organise.py --auto
 ```
 *This is ideal for scheduled tasks, batch jobs, or headless server environments.*
 
+### Verifying Checksums (--verify-checksums)
+Run with `--verify-checksums` to re-hash every file covered by a `Checksums.b2` manifest and report any mismatches, then exit (no GUI, no Encora fetch):
+```bash
+python3 full-organise.py --verify-checksums
+```
+*This fully re-reads every checksummed file, so it's slower than a normal run -- use it as an occasional integrity check, e.g. after a drive move or on a schedule separate from `--auto`.*
+
 ---
 
 ## Configuration
@@ -34,6 +41,7 @@ The organiser is highly customisable via the GUI (saved to `.env`).
 *   **Generate Cast Files**: Replaces/Creates `Cast.txt` in every folder with the latest cast list from Encora.
 *   **Generate ID Files**: Creates `.encora-id` files for compatibility with metadata agents (like Plex).
 *   **Always Redownload Subtitles**: Forces a refresh of all local subtitles from the Encora database.
+*   **Generate Checksums**: Creates/updates a `Checksums.b2` manifest in every recording folder (see [Checksums](#checksums) below).
 
 ### 2. Directory Settings
 *   **Main Directory**: The root folder where your collection lives.
@@ -56,6 +64,26 @@ The organiser is highly customisable via the GUI (saved to `.env`).
 - **ID Detection**: It detects Encora IDs regardless of your naming style (supports `{e-123}`, `[e-123]`, `(e-123)`, or raw `e-123`).
 - **Flexible Sorting**: Supports removing sorting articles (The/A/An) for folder structures.
 - **Processing Safety**: Folders are moved to a `!processing` queue during organisation to prevent data loss in case of hardware failure or crashes.
+- **Checksums**: See [Checksums](#checksums) below.
+
+
+## Checksums
+
+When **Generate Checksums** is enabled, every recording folder gets a `Checksums.b2` manifest listing a BLAKE2b-512 digest for each file it contains, relative to that folder -- so a single-file video, a folder of tracked audio, or a VOB rip's `VIDEO_TS`/`AUDIO_TS` structure are all covered by one manifest per recording, walked recursively.
+
+> [!WARNING]
+> **The first run hashes your entire un-checksummed library once** -- this reads every byte of every file. On spinning disks, expect roughly **5 hours per TB** (much faster on SSD). A large multi-TB library can take a day or more the first time. This is unavoidable -- checksums can't be computed without reading the data -- but it's a one-time cost: incremental generation (below) means every run after that is fast.
+
+BLAKE2b is used because it's built into Python (`hashlib`, no extra dependency), it's faster than SHA-256 on 64-bit CPUs, and it produces the exact same digest as GNU `b2sum` -- so any manifest can also be checked by hand, without this tool, via:
+```bash
+b2sum -c "Checksums.b2"
+```
+
+**Generation is incremental**: each folder gets a hidden `.checksums.cache` recording every file's size + mtime alongside its hash. If a file's size/mtime still match the cache, its hash is trusted and not re-read; if either changed -- including a re-graded/re-encoded file dropped in under the *same* filename, e.g. an Encora format upgrade -- it's re-hashed automatically on the next run. New files are always hashed; files that no longer exist are dropped from the manifest. `.checksums.cache` is internal bookkeeping (excluded from the GDrive upload via `rclone-exclusions.txt`) -- the portable, human/`b2sum`-checkable file is always just `Checksums.b2`.
+
+This stat-based check is fast but not foolproof: a file replaced in-place with different content at the *exact* same size and mtime (vanishingly rare outside deliberate tampering) won't be caught until you run [`--verify-checksums`](#verifying-checksums---verify-checksums), which fully re-hashes and compares every file regardless of the cache.
+
+Use **Skip Checksums** (Exclusion Rules tab) together with **Excluded IDs** to leave specific recordings out of checksum generation.
 
 ## Installation
 

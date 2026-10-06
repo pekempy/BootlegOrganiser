@@ -14,8 +14,13 @@ def get_folder_size(folder):
 def delete_empty_directories(directory):
     """Recursively delete all empty directories within the given directory."""
     for dirpath, dirnames, filenames in os.walk(directory, topdown=False):
+        if os.path.islink(dirpath) or os.path.basename(dirpath).startswith('.'):
+            continue
         if not dirnames and not filenames:
-            os.rmdir(dirpath)
+            try:
+                os.rmdir(dirpath)
+            except OSError:
+                pass
 
 def clean_processing_folder(main_directory):
     """Delete empty directories inside !processing and the folder itself if empty."""
