@@ -290,13 +290,15 @@ class ConfigGUI:
         self.notebook.pack(fill=tk.BOTH, expand=True)
 
         # Tabs
-        tab_api = tk.Frame(self.notebook, bg=BG_COLOUR, padx=15, pady=15)
-        tab_dir = tk.Frame(self.notebook, bg=BG_COLOUR, padx=15, pady=15)
+        tab_api  = tk.Frame(self.notebook, bg=BG_COLOUR, padx=15, pady=15)
+        tab_dir  = tk.Frame(self.notebook, bg=BG_COLOUR, padx=15, pady=15)
         tab_excl = tk.Frame(self.notebook, bg=BG_COLOUR, padx=15, pady=15)
+        tab_struct = tk.Frame(self.notebook, bg=BG_COLOUR, padx=15, pady=15)
 
-        self.notebook.add(tab_api, text="API & Options")
-        self.notebook.add(tab_dir, text="Directory Settings")
-        self.notebook.add(tab_excl, text="Exclusion Rules")
+        self.notebook.add(tab_api,    text="API & Options")
+        self.notebook.add(tab_dir,    text="Directory Settings")
+        self.notebook.add(tab_excl,   text="Exclusion Rules")
+        self.notebook.add(tab_struct, text="Structure Rules")
 
         self.tab_dir = tab_dir
         self.tab_excl = tab_excl
@@ -338,6 +340,8 @@ class ConfigGUI:
                  "-- roughly 5 hrs per TB on spinning disks (much faster on SSD). Only new/changed files "
                  "are re-hashed after that, so later runs are quick.",
                  bg=CARD_COLOUR, fg=MUTED_TEXT, font=("Segoe UI", 8), justify=tk.LEFT, wraplength=480).pack(anchor=tk.W, pady=(6, 0))
+        # --- Tab 4: Structure Rules ---
+        self._build_structure_tab(tab_struct)
         # --- Tab 2: Directory Settings ---
         self.create_label(tab_dir, "Main Directory", ("Segoe UI", 11, "bold")).pack(anchor=tk.W, pady=(0, 10))
         row_dir = tk.Frame(tab_dir, bg=BG_COLOUR)
@@ -556,6 +560,7 @@ class ConfigGUI:
         self.date_replace_char_var.set(config.date_replace_char)
         
         self.update_previews()
+        self._load_structure_config()
 
     def save_config(self, msg=True):
         config.set('ENCORA_API_KEY', self.api_key_var.get())
@@ -579,6 +584,7 @@ class ConfigGUI:
         config.set('AMOUNT_CONTAINER', self.amount_cont_var.get())
         config.set('ENCORA_ID_CONTAINER', self.id_cont_var.get())
         config.set('DATE_REPLACE_CHAR', self.date_replace_char_var.get())
+        self._save_structure_config()
         if msg: messagebox.showinfo("Saved", "Settings updated!")
         return True
 
@@ -586,6 +592,148 @@ class ConfigGUI:
         if self.save_config(False):
             self.root.destroy()
             self.on_run_callback()
+
+    # ── Structure Rules tab ───────────────────────────────────────────────────
+
+    def _build_structure_tab(self, parent):
+        # Scrollable canvas so it fits any window size
+        canvas = tk.Canvas(parent, bg=BG_COLOUR, highlightthickness=0)
+        scroll = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        inner  = tk.Frame(canvas, bg=BG_COLOUR)
+
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.configure(yscrollcommand=scroll.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        def card(title):
+            f = tk.Frame(inner, bg=CARD_COLOUR, padx=15, pady=12,
+                         highlightthickness=1, highlightbackground=BORDER_COLOUR)
+            f.pack(fill=tk.X, pady=(0, 10))
+            tk.Label(f, text=title, font=("Segoe UI", 11, "bold"),
+                     bg=CARD_COLOUR, fg=TEXT_COLOUR).pack(anchor=tk.W, pady=(0, 10))
+            return f
+
+        def labelled_entry(parent, label, var, width=22):
+            row = tk.Frame(parent, bg=CARD_COLOUR)
+            row.pack(fill=tk.X, pady=3)
+            tk.Label(row, text=label, bg=CARD_COLOUR, fg=TEXT_COLOUR,
+                     font=("Segoe UI", 9), width=26, anchor=tk.W).pack(side=tk.LEFT)
+            tk.Entry(row, textvariable=var, width=width, font=("Segoe UI", 9),
+                     bg=BG_COLOUR, fg=TEXT_COLOUR, relief="flat",
+                     insertbackground=TEXT_COLOUR,
+                     highlightthickness=1, highlightbackground=BORDER_COLOUR).pack(side=tk.LEFT, padx=5)
+
+        # ── Enable toggle ──────────────────────────────────────────────────────
+        enable_card = card("Content Organiser")
+        self.organise_content_var = tk.BooleanVar()
+        tk.Checkbutton(enable_card, text="Enable content organiser (runs after folder move/rename)",
+                       variable=self.organise_content_var, bg=CARD_COLOUR, fg=TEXT_COLOUR,
+                       selectcolor=ACCENT_BLUE, activebackground=CARD_COLOUR,
+                       activeforeground=TEXT_COLOUR, font=("Segoe UI", 9)).pack(anchor=tk.W)
+        tk.Label(enable_card,
+                 text="Normalises audio/video subfolder names, cleans junk, moves photos & PDFs.",
+                 bg=CARD_COLOUR, fg=MUTED_TEXT, font=("Segoe UI", 8),
+                 justify=tk.LEFT, wraplength=520).pack(anchor=tk.W, pady=(4, 0))
+
+        row_act = tk.Frame(enable_card, bg=CARD_COLOUR)
+        row_act.pack(fill=tk.X, pady=(10, 0))
+        tk.Label(row_act, text="Unknown pattern action:", bg=CARD_COLOUR, fg=TEXT_COLOUR,
+                 font=("Segoe UI", 9)).pack(side=tk.LEFT)
+        self.unknown_action_var = tk.StringVar()
+        ttk.Combobox(row_act, textvariable=self.unknown_action_var,
+                     values=["prompt", "skip", "log"],
+                     width=10, state="readonly").pack(side=tk.LEFT, padx=8)
+        tk.Label(row_act,
+                 text="prompt = ask interactively  |  skip = leave as-is  |  log = write to unrecognised_patterns.txt",
+                 bg=CARD_COLOUR, fg=MUTED_TEXT, font=("Segoe UI", 8)).pack(side=tk.LEFT, padx=4)
+
+        # ── Folder names ───────────────────────────────────────────────────────
+        names_card = card("Folder Names")
+        self.tracked_name_var    = tk.StringVar()
+        self.untracked_name_var  = tk.StringVar()
+        self.vobs_name_var       = tk.StringVar()
+        self.parts_name_var      = tk.StringVar()
+        self.photos_name_var     = tk.StringVar()
+        self.archive_name_var    = tk.StringVar()
+
+        labelled_entry(names_card, "Tracked audio folder",   self.tracked_name_var)
+        labelled_entry(names_card, "Untracked audio folder", self.untracked_name_var)
+        labelled_entry(names_card, "VOBs folder",            self.vobs_name_var)
+        labelled_entry(names_card, "Multi-segment video",    self.parts_name_var)
+        labelled_entry(names_card, "Cast/prod photos",       self.photos_name_var)
+        labelled_entry(names_card, "PDF programmes",         self.programme_name_var)
+        labelled_entry(names_card, "Archive/ZIP folder",     self.archive_name_var)
+        tk.Label(names_card,
+                 text='Format suffix (MP3), (WAV) etc. is added automatically when multiple formats coexist.\n'
+                      '"(no smalls)" appended to VOBs folder when IFO/BUP files are absent.',
+                 bg=CARD_COLOUR, fg=MUTED_TEXT, font=("Segoe UI", 8),
+                 justify=tk.LEFT, wraplength=520).pack(anchor=tk.W, pady=(8, 0))
+
+        # ── File handling ──────────────────────────────────────────────────────
+        files_card = card("File Handling")
+        self.delete_junk_var     = tk.BooleanVar()
+        self.delete_artwork_var  = tk.BooleanVar()
+        self.move_photos_var     = tk.BooleanVar()
+        self.move_archives_var   = tk.BooleanVar()
+
+        for text, var, note in [
+            ("Delete junk files",
+             self.delete_junk_var,
+             ".DS_Store, ._.DS_Store, Thumbs.db, .exe, .docx, duplicate Cast files"),
+            ("Delete artwork images",
+             self.delete_artwork_var,
+             "Art.png, AlbumArtSmall.jpg, Album Cover.*, posters, numbered screenshots"),
+            ("Move cast/production photos → Photos/",
+             self.move_photos_var,
+             "All other images (.jpg, .png, .heic, phone photos, etc.)"),
+            ("Move PDF programmes → Programme/",
+             self.move_programmes_var,
+             "PDF files in release root"),
+            ("Move archives → Archive/",
+             self.move_archives_var,
+             ".zip, .rar, .7z, .tar etc."),
+        ]:
+            row = tk.Frame(files_card, bg=CARD_COLOUR)
+            row.pack(fill=tk.X, pady=2)
+            tk.Checkbutton(row, text=text, variable=var, bg=CARD_COLOUR, fg=TEXT_COLOUR,
+                           selectcolor=ACCENT_BLUE, activebackground=CARD_COLOUR,
+                           activeforeground=TEXT_COLOUR, font=("Segoe UI", 9)).pack(side=tk.LEFT)
+            tk.Label(row, text=f"  ({note})", bg=CARD_COLOUR, fg=MUTED_TEXT,
+                     font=("Segoe UI", 8)).pack(side=tk.LEFT)
+
+    def _load_structure_config(self):
+        self.organise_content_var.set(config.organise_content)
+        self.unknown_action_var.set(config.unknown_pattern_action)
+        self.tracked_name_var.set(config.tracked_folder_name)
+        self.untracked_name_var.set(config.untracked_folder_name)
+        self.vobs_name_var.set(config.vobs_folder_name)
+        self.parts_name_var.set(config.parts_folder_name)
+        self.photos_name_var.set(config.photos_folder_name)
+        self.programme_name_var.set(config.programme_folder_name)
+        self.delete_junk_var.set(config.delete_junk_files)
+        self.delete_artwork_var.set(config.delete_artwork)
+        self.move_photos_var.set(config.move_photos)
+        self.move_programmes_var.set(config.move_programmes)
+        self.archive_name_var.set(config.archive_folder_name)
+        self.move_archives_var.set(config.move_archives)
+
+    def _save_structure_config(self):
+        config.set('ORGANISE_CONTENT',       str(self.organise_content_var.get()).lower())
+        config.set('UNKNOWN_PATTERN_ACTION',  self.unknown_action_var.get())
+        config.set('TRACKED_FOLDER_NAME',    self.tracked_name_var.get())
+        config.set('UNTRACKED_FOLDER_NAME',  self.untracked_name_var.get())
+        config.set('VOBS_FOLDER_NAME',       self.vobs_name_var.get())
+        config.set('PARTS_FOLDER_NAME',      self.parts_name_var.get())
+        config.set('PHOTOS_FOLDER_NAME',     self.photos_name_var.get())
+        config.set('PROGRAMME_FOLDER_NAME',  self.programme_name_var.get())
+        config.set('DELETE_JUNK_FILES',      str(self.delete_junk_var.get()).lower())
+        config.set('DELETE_ARTWORK',         str(self.delete_artwork_var.get()).lower())
+        config.set('MOVE_PHOTOS',            str(self.move_photos_var.get()).lower())
+        config.set('MOVE_PROGRAMMES',        str(self.move_programmes_var.get()).lower())
+        config.set('ARCHIVE_FOLDER_NAME',    self.archive_name_var.get())
+        config.set('MOVE_ARCHIVES',          str(self.move_archives_var.get()).lower())
 
 def start_gui(on_run_callback):
     root = tk.Tk()

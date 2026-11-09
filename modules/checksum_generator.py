@@ -156,12 +156,13 @@ def generate_checksum_manifest(folder, force=False):
 
 def create_checksum_files(encora_data):
     """Generate/update checksum manifests for every local recording in encora_data."""
+    import tqdm
     from modules.config import config
     excluded_ids = config.excluded_ids
     skip_checksums = config.exclude_checksum_files
     updated_count = 0
 
-    for entry in encora_data:
+    for entry in tqdm.tqdm(encora_data, desc="Checksumming recordings...", unit="recording"):
         path = entry['path']
         encora_id = str(entry['encora_id'])
 

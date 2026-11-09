@@ -149,9 +149,9 @@ def file_content_hash(file_path):
     return sha256.hexdigest()
 
 def download_all_subtitles(recording_ids_with_subtitles):
-    """Download subtitles for the given Encora IDs."""
+    """Download subtitles. Returns (updated_count, [updated_folder_basenames])."""
     if not recording_ids_with_subtitles:
-        return
+        return 0, []
 
     # Extract all recording IDs
     recording_ids = [item[0] for item in recording_ids_with_subtitles]
@@ -180,7 +180,9 @@ def download_all_subtitles(recording_ids_with_subtitles):
             subtitles_by_recording_id[recording_id].append(subtitle)
 
         updated_subs = 0
+        updated_folders = []
         for recording_id, folder_path in tqdm(recording_ids_with_subtitles, desc="Downloading non-matching subtitles"):
+            _rec_updated = False
             if recording_id in subtitles_by_recording_id:
                 subtitles = subtitles_by_recording_id[recording_id]
                 download_directory = folder_path
@@ -256,6 +258,7 @@ def download_all_subtitles(recording_ids_with_subtitles):
                             try:
                                 os.rename(existing_matching_file_path, file_path)
                                 updated_subs += 1
+                                _rec_updated = True
                             except Exception as e:
                                 print(f"Error renaming local subtitle: {e}")
                         continue
@@ -270,15 +273,14 @@ def download_all_subtitles(recording_ids_with_subtitles):
                     with open(file_path, 'wb') as file:
                         file.write(new_content)
                     updated_subs += 1
-        
-        if updated_subs > 0:
-            print(f"Downloaded/Updated {updated_subs} subtitle files.")
-        else:
-            print("All local subtitles are already up to date.")
+                    _rec_updated = True
+            if _rec_updated:
+                updated_folders.append(os.path.basename(folder_path))
+        return updated_subs, updated_folders
                 
     except Exception as e:
         print(f"Error downloading subtitles: {e}")
-                
+        return 0, []
 
 def download_subtitles_for_folders(main_directory, recording_data):
     """Recursively download subtitles for all folders in the main directory."""
@@ -308,7 +310,6 @@ def download_subtitles_for_folders(main_directory, recording_data):
                 recording_ids_with_subtitles.append((encora_id, folder_path))
 
     if not recording_ids_with_subtitles:
-        print("No recordings found requiring subtitle downloads.")
-        return
+        return 0, []
 
-    download_all_subtitles(recording_ids_with_subtitles)
+    return download_all_subtitles(recording_ids_with_subtitles)

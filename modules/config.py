@@ -98,4 +98,63 @@ class Config:
     def date_replace_char(self):
         return self.get('DATE_REPLACE_CHAR', '0')
 
+    # ── Content organiser ──────────────────────────────────────────────────────
+
+    @property
+    def organise_content(self):
+        return self.get('ORGANISE_CONTENT', 'false').lower() == 'true'
+
+    @property
+    def unknown_pattern_action(self):
+        """How to handle unrecognised file patterns: 'prompt' | 'skip' | 'log'."""
+        return self.get('UNKNOWN_PATTERN_ACTION', 'prompt')
+
+    @property
+    def tracked_folder_name(self):
+        return self.get('TRACKED_FOLDER_NAME', 'Tracked')
+
+    @property
+    def untracked_folder_name(self):
+        return self.get('UNTRACKED_FOLDER_NAME', 'Untracked')
+
+    @property
+    def vobs_folder_name(self):
+        return self.get('VOBS_FOLDER_NAME', 'VOBs')
+
+    @property
+    def parts_folder_name(self):
+        return self.get('PARTS_FOLDER_NAME', 'Parts')
+
+    @property
+    def photos_folder_name(self):
+        return self.get('PHOTOS_FOLDER_NAME', 'Photos')
+
+    @property
+    def programme_folder_name(self):
+        return self.get('PROGRAMME_FOLDER_NAME', 'Programme')
+
+    @property
+    def delete_artwork(self):
+        return self.get('DELETE_ARTWORK', 'true').lower() == 'true'
+
+    @property
+    def move_photos(self):
+        return self.get('MOVE_PHOTOS', 'true').lower() == 'true'
+
+    @property
+    def move_programmes(self):
+        return self.get('MOVE_PROGRAMMES', 'true').lower() == 'true'
+
+    @property
+    def delete_junk_files(self):
+        return self.get('DELETE_JUNK_FILES', 'true').lower() == 'true'
+
+    @property
+    def archive_folder_name(self):
+        return self.get('ARCHIVE_FOLDER_NAME', 'Archive')
+
+    @property
+    def move_archives(self):
+        return self.get('MOVE_ARCHIVES', 'true').lower() == 'true'
+
 config = Config()
