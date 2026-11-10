@@ -1,3 +1,4 @@
+import unicodedata
 import os
 import re
 import time
@@ -22,7 +23,7 @@ def find_local_encora_ids(main_directory):
             and not os.path.islink(os.path.join(root, d))
         ]
         for dir_name in dirs:
-            folder_path = os.path.join(root, dir_name)
+            folder_path = unicodedata.normalize('NFC', os.path.join(root, dir_name))
             encora_id = None
 
             # 1. Prioritise folder name regex patterns (strictly requiring 'e-')

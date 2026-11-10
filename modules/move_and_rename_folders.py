@@ -1,3 +1,4 @@
+import unicodedata
 import os
 import shutil
 import re
@@ -171,7 +172,7 @@ def move_and_rename_folders(encora_data, main_directory):
     encora_data_sorted = sorted(encora_data, key=lambda x: len(x['path']), reverse=True)
     
     for entry in tqdm(encora_data_sorted, desc="Moving and Renaming Folders"):
-        old_path = entry['path']
+        old_path = unicodedata.normalize('NFC', entry['path'])
         recording_data = entry['recording_data']
         encora_id = entry['encora_id']
         
@@ -179,12 +180,13 @@ def move_and_rename_folders(encora_data, main_directory):
         show_directory = format_show_folder(recording_data, encora_id, show_directory_format, folder_name=show_folder)
         
         if '{folder}' in show_directory_format:
-            new_path = os.path.join(main_directory, show_directory)
+            new_path = unicodedata.normalize('NFC', os.path.join(main_directory, show_directory))
         else:
-            new_path = os.path.join(main_directory, show_directory, show_folder)
+            new_path = unicodedata.normalize('NFC', os.path.join(main_directory, show_directory, show_folder))
         
         # If old_path and new_path resolve to the same location, nothing to do
-        if os.path.normpath(old_path) == os.path.normpath(new_path) or os.path.realpath(old_path) == os.path.realpath(new_path):
+        if unicodedata.normalize('NFC', os.path.normpath(old_path)) == unicodedata.normalize('NFC', os.path.normpath(new_path)) \
+                or unicodedata.normalize('NFC', os.path.realpath(old_path)) == unicodedata.normalize('NFC', os.path.realpath(new_path)):
             continue
 
         # Skip if old_path itself is a symlink
