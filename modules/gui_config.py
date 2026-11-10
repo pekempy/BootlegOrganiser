@@ -656,6 +656,7 @@ class ConfigGUI:
         self.vobs_name_var       = tk.StringVar()
         self.parts_name_var      = tk.StringVar()
         self.photos_name_var     = tk.StringVar()
+        self.programme_name_var  = tk.StringVar()
         self.archive_name_var    = tk.StringVar()
 
         labelled_entry(names_card, "Tracked audio folder",   self.tracked_name_var)
@@ -677,6 +678,7 @@ class ConfigGUI:
         self.delete_artwork_var  = tk.BooleanVar()
         self.move_photos_var     = tk.BooleanVar()
         self.move_archives_var   = tk.BooleanVar()
+        self.move_programmes_var = tk.BooleanVar()
 
         for text, var, note in [
             ("Delete junk files",
