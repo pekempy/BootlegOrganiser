@@ -677,20 +677,47 @@ class ContentOrganiser:
     # ── Execution ──────────────────────────────────────────────────────────────
 
     def _execute(self):
+        # In safe mode, ops were already confirmed as a batch above.
+        # Log each individual operation at INFO so the full picture is in
+        # organiser-debug.log alongside the user's approval decision.
+        _log = logger.info if self.confirm is not None else logger.debug
+
+        # ── Safe-mode: show queued ops for this folder and ask before running ──
+        if self.confirm is not None and self._ops:
+            lines = []
+            for op in self._ops:
+                if op[0] == 'move':
+                    try:
+                        rel_dst = Path(op[2]).relative_to(self.release_path)
+                    except ValueError:
+                        rel_dst = Path(op[2])
+                    lines.append(f"    MOVE   {Path(op[1]).name}  →  {rel_dst}")
+                elif op[0] == 'delete':
+                    lines.append(f"    DELETE {Path(op[1]).name}")
+                elif op[0] == 'rmdir':
+                    lines.append(f"    RMDIR  {Path(op[1]).name}/")
+            preview = "\n".join(lines[:25])
+            if len(lines) > 25:
+                preview += f"\n    … and {len(lines) - 25} more"
+            if not self.confirm(
+                f"Organise release folder: {self.release_path.name}\n{preview}"
+            ):
+                return  # user skipped — leave folder untouched
+
         for op in self._ops:
             try:
                 if op[0] == 'delete':
                     p = Path(op[1])
                     if p.exists():
                         p.unlink()
-                        logger.debug(f"Deleted {p}")
+                        _log(f"Deleted {p}")
 
                 elif op[0] == 'move':
                     src, dst = Path(op[1]), Path(op[2])
                     if src.exists() and src.resolve() != dst.resolve():
                         dst.parent.mkdir(parents=True, exist_ok=True)
                         shutil.move(str(src), str(dst))
-                        logger.debug(f"Moved {src} → {dst}")
+                        _log(f"Moved {src} → {dst}")
 
                 elif op[0] == 'rmdir':
                     p = Path(op[1])

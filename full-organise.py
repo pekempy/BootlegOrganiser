@@ -92,12 +92,16 @@ class _SafeConfirm:
     Callable passed to destructive operations when --safe is active.
     Writes the pending action to /dev/tty and waits for y/n/a/q.
     Tracks an approve-all flag so the user can say 'a' once and move on.
+    Every decision (approved / skipped) is also written to organiser-debug.log.
     """
+    _log = logging.getLogger("organiser.safe")
+
     def __init__(self):
         self._all = False
 
     def __call__(self, action: str) -> bool:
         if self._all:
+            self._log.info(f"AUTO-APPROVED (all): {action}")
             return True
         _write_tty(
             f"\n  {_SH}⚠  SAFE MODE{_RS} — pending action:\n"
@@ -106,12 +110,16 @@ class _SafeConfirm:
         )
         choice = _read_tty()
         if choice == 'q':
+            self._log.warning("QUIT by user")
             _write_tty("\nAborted.\n")
             sys.exit(0)
         if choice == 'a':
             self._all = True
+            self._log.info(f"APPROVED (approve-all set): {action}")
             return True
-        return choice in ('y', '')
+        approved = choice in ('y', '')
+        self._log.info(f"{'APPROVED' if approved else 'SKIPPED'}: {action}")
+        return approved
 
 
 
@@ -136,7 +144,7 @@ def run_organiser(interactive: bool = True, safe: bool = False):
     _dbg_handler = logging.FileHandler("organiser-debug.log", mode="w", encoding="utf-8")
     _dbg_handler.setLevel(logging.DEBUG)
     _dbg_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
-    for _mod in ("modules.content_organiser", "modules.cleanup_processing"):
+    for _mod in ("modules.content_organiser", "modules.cleanup_processing", "organiser.safe"):
         logging.getLogger(_mod).addHandler(_dbg_handler)
         logging.getLogger(_mod).setLevel(logging.DEBUG)
 
