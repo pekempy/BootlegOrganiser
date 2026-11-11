@@ -134,20 +134,29 @@ def run_organiser(interactive: bool = True, safe: bool = False):
 
     # Disable tqdm globally — clean output comes from _done() summaries
     os.environ["TQDM_DISABLE"] = "1"
-    # Route WARNING+ to stderr (visible even when stdout is suppressed).
-    # Also write full DEBUG to organiser-debug.log for diagnosing macOS issues.
-    logging.basicConfig(
-        level=logging.WARNING,
-        format="  %(levelname)s [%(name)s] %(message)s",
-        stream=sys.stderr,
-    )
+
+    # Logging setup:
+    #   WARNING+ → stderr (visible in terminal, bypasses _quiet() redirects)
+    #   DEBUG+   → organiser-debug.log (full trace for post-run diagnosis)
+    # propagate=False prevents DEBUG from leaking to the root logger / terminal.
+    _fmt_term = logging.Formatter("  %(levelname)s [%(name)s] %(message)s")
+    _fmt_file = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+
+    _warn_handler = logging.StreamHandler(sys.stderr)
+    _warn_handler.setLevel(logging.WARNING)
+    _warn_handler.setFormatter(_fmt_term)
+
     _dbg_handler = logging.FileHandler("organiser-debug.log", mode="w", encoding="utf-8")
     _dbg_handler.setLevel(logging.DEBUG)
-    _dbg_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
-    for _mod in ("modules.content_organiser", "modules.cleanup_processing", "organiser.safe"):
-        logging.getLogger(_mod).addHandler(_dbg_handler)
-        logging.getLogger(_mod).setLevel(logging.DEBUG)
+    _dbg_handler.setFormatter(_fmt_file)
 
+    for _mod in ("modules.content_organiser", "modules.cleanup_processing", "organiser.safe"):
+        _lg = logging.getLogger(_mod)
+        _lg.handlers.clear()
+        _lg.addHandler(_warn_handler)
+        _lg.addHandler(_dbg_handler)
+        _lg.setLevel(logging.DEBUG)
+        _lg.propagate = False  # keep DEBUG out of root logger / terminal
 
     _quiet(clear_diff_files)
 
