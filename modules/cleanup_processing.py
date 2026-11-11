@@ -1,5 +1,12 @@
 import os
+import re
 import shutil
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Encora release-folder pattern  — {e-NNN}, [e-NNN], (e-NNN)
+_ENCORA_ID_RE = re.compile(r'[\{\[\(]e-\d+[\}\]\)]')
 
 def get_folder_size(folder):
     """Returns the total size of the folder in bytes."""
@@ -17,6 +24,16 @@ def delete_empty_directories(directory):
         if os.path.islink(dirpath) or os.path.basename(dirpath).startswith('.'):
             continue
         if not dirnames and not filenames:
+            folder_name = os.path.basename(dirpath)
+            # SAFETY: never silently delete a folder whose name contains an Encora
+            # ID — if it's empty that's unexpected and should be surfaced loudly.
+            if _ENCORA_ID_RE.search(folder_name):
+                logger.warning(
+                    f"delete_empty_directories: would delete Encora release folder "
+                    f"that appears empty — SKIPPING to avoid data loss: {dirpath}"
+                )
+                continue
+            logger.debug(f"delete_empty_directories: removing empty dir {dirpath}")
             try:
                 os.rmdir(dirpath)
             except OSError:

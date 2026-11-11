@@ -4,6 +4,8 @@ import io
 import re
 import argparse
 from contextlib import redirect_stdout, redirect_stderr
+import logging
+
 
 from modules.config import config
 from modules.cleanup_processing import clean_processing_folder, delete_empty_directories
@@ -74,6 +76,20 @@ def run_organiser(interactive: bool = True):
 
     # Disable tqdm globally — clean output comes from _done() summaries
     os.environ["TQDM_DISABLE"] = "1"
+    # Route WARNING+ to stderr (visible even when stdout is suppressed).
+    # Also write full DEBUG to organiser-debug.log for diagnosing macOS issues.
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="  %(levelname)s [%(name)s] %(message)s",
+        stream=sys.stderr,
+    )
+    _dbg_handler = logging.FileHandler("organiser-debug.log", mode="w", encoding="utf-8")
+    _dbg_handler.setLevel(logging.DEBUG)
+    _dbg_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s"))
+    for _mod in ("modules.content_organiser", "modules.cleanup_processing"):
+        logging.getLogger(_mod).addHandler(_dbg_handler)
+        logging.getLogger(_mod).setLevel(logging.DEBUG)
+
 
     _quiet(clear_diff_files)
 

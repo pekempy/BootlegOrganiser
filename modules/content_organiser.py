@@ -707,8 +707,13 @@ class ContentOrganiser:
         """Remove empty subdirectories left behind after moves, bottom-up."""
         for root, dirs, files in os.walk(self.release_path, topdown=False):
             p = Path(root)
-            if p == self.release_path:
+            # Debug: log the comparison so macOS path issues surface
+            same = (p == self.release_path)
+            logger.debug(f"_clean_empty_subdirs: p={p!r}  release_path={self.release_path!r}  same={same}")
+            if same:
                 continue  # never remove the release root itself
+            if not dirs and not files:
+                logger.warning(f"_clean_empty_subdirs: attempting rmdir on empty subdir: {p}")
             try:
                 p.rmdir()  # only succeeds if empty
                 logger.debug(f"Removed empty dir {p}")
