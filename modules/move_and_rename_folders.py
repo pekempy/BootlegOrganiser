@@ -170,7 +170,7 @@ def move_merge(src, dst):
                 pass
         shutil.move(src, dst)
 
-def move_and_rename_folders(encora_data, main_directory):
+def move_and_rename_folders(encora_data, main_directory, confirm=None):
     show_directory_format = config.show_directory_format or '{show_name}/{tour}/{type}/{folder}'
     show_folder_format = config.show_folder_format or '[{date}] [{matinee}] [{nft}] {show_name} ~ {master} {encora_id}'
 
@@ -193,6 +193,12 @@ def move_and_rename_folders(encora_data, main_directory):
         # If old_path and new_path resolve to the same location, nothing to do
         if unicodedata.normalize('NFC', os.path.normpath(old_path)) == unicodedata.normalize('NFC', os.path.normpath(new_path)) \
                 or unicodedata.normalize('NFC', os.path.realpath(old_path)) == unicodedata.normalize('NFC', os.path.realpath(new_path)):
+            continue
+
+        # Safe-mode: show the rename and ask before proceeding
+        if confirm is not None and not confirm(
+            f"MOVE folder:\n    {old_path}\n    → {new_path}"
+        ):
             continue
 
         # Skip if old_path itself is a symlink

@@ -66,9 +66,59 @@ def _capture(fn, *args, **kwargs):
         result = fn(*args, **kwargs)
     return result, buf.getvalue()
 
+# ── Safe-mode confirmation ─────────────────────────────────────────────────────
+def _write_tty(msg: str) -> None:
+    """Write directly to the controlling terminal, bypassing _quiet() redirects."""
+    try:
+        with open('/dev/tty', 'w') as tty:
+            tty.write(msg)
+            tty.flush()
+    except OSError:
+        sys.stderr.write(msg)
+        sys.stderr.flush()
+
+
+def _read_tty() -> str:
+    """Read one line from the controlling terminal."""
+    try:
+        with open('/dev/tty') as tty:
+            return tty.readline().strip().lower()
+    except OSError:
+        return input().strip().lower()
+
+
+class _SafeConfirm:
+    """
+    Callable passed to destructive operations when --safe is active.
+    Writes the pending action to /dev/tty and waits for y/n/a/q.
+    Tracks an approve-all flag so the user can say 'a' once and move on.
+    """
+    def __init__(self):
+        self._all = False
+
+    def __call__(self, action: str) -> bool:
+        if self._all:
+            return True
+        _write_tty(
+            f"\n  {_SH}⚠  SAFE MODE{_RS} — pending action:\n"
+            f"  {action}\n"
+            f"  {_DM}[y] proceed  [n] skip  [a] approve all remaining  [q] quit{_RS}: "
+        )
+        choice = _read_tty()
+        if choice == 'q':
+            _write_tty("\nAborted.\n")
+            sys.exit(0)
+        if choice == 'a':
+            self._all = True
+            return True
+        return choice in ('y', '')
+
+
 
 # ── Organiser ─────────────────────────────────────────────────────────────────
-def run_organiser(interactive: bool = True):
+def run_organiser(interactive: bool = True, safe: bool = False):
+    confirm = _SafeConfirm() if safe else None
+
     main_directory = config.main_directory
     if main_directory is None:
         print(f"{_R}Error:{_RS} BOOTLEG_MAIN_DIRECTORY not set in config.")
@@ -122,17 +172,17 @@ def run_organiser(interactive: bool = True):
 
     # ── Move & rename ─────────────────────────────────────────────────────────
     _spin("Moving & renaming folders")
-    _quiet(move_and_rename_folders, recording_data, main_directory)
+    _quiet(move_and_rename_folders, recording_data, main_directory, confirm=confirm)
     _done("Folders", "renamed & organised")
 
     # ── Organise content ──────────────────────────────────────────────────────
     if config.organise_content:
         _spin("Organising release content")
         updated_local_ids = _quiet(find_local_encora_ids, main_directory)
-        _quiet(organise_all_releases, updated_local_ids, interactive=False)
+        _quiet(organise_all_releases, updated_local_ids, interactive=False, confirm=confirm)
         _done("Content", f"{len(updated_local_ids)} releases organised")
 
-    _quiet(delete_empty_directories, main_directory)
+    _quiet(delete_empty_directories, main_directory, confirm=confirm)
 
     # ── File sizes & formats ──────────────────────────────────────────────────
     _spin("Checking formats")
@@ -207,6 +257,8 @@ def section(title):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Bootleg Organiser")
     parser.add_argument("--auto", action="store_true", help="Run without GUI")
+    parser.add_argument("--safe", action="store_true",
+                        help="Pause and confirm before every move or delete")
     parser.add_argument("--verify-checksums", action="store_true",
                         help="Re-hash and verify all stored checksum manifests, then exit")
     args = parser.parse_args()
@@ -219,7 +271,7 @@ if __name__ == "__main__":
         sys.exit(1 if failed else 0)
 
     if args.auto:
-        run_organiser(interactive=False)
+        run_organiser(interactive=False, safe=args.safe)
     else:
         try:
             from modules.gui_config import start_gui

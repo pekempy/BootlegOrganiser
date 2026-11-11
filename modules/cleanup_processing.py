@@ -18,7 +18,7 @@ def get_folder_size(folder):
                 total_size += os.path.getsize(fp)
     return total_size
 
-def delete_empty_directories(directory):
+def delete_empty_directories(directory, confirm=None):
     """Recursively delete all empty directories within the given directory."""
     for dirpath, dirnames, filenames in os.walk(directory, topdown=False):
         if os.path.islink(dirpath) or os.path.basename(dirpath).startswith('.'):
@@ -32,6 +32,9 @@ def delete_empty_directories(directory):
                     f"delete_empty_directories: would delete Encora release folder "
                     f"that appears empty — SKIPPING to avoid data loss: {dirpath}"
                 )
+                continue
+            # Safe-mode: pause before each deletion
+            if confirm is not None and not confirm(f"DELETE empty directory:\n    {dirpath}"):
                 continue
             logger.debug(f"delete_empty_directories: removing empty dir {dirpath}")
             try:

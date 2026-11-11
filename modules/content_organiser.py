@@ -723,7 +723,7 @@ class ContentOrganiser:
 
 # ── Batch entry point ──────────────────────────────────────────────────────────
 
-def organise_all_releases(local_ids: list[tuple], interactive: bool = True):
+def organise_all_releases(local_ids: list[tuple], interactive: bool = True, confirm=None):
     """
     Organise content for every release folder in local_ids.
     local_ids: list of (encora_id, folder_path) from find_local_encora_ids().
@@ -732,6 +732,6 @@ def organise_all_releases(local_ids: list[tuple], interactive: bool = True):
     for _, folder_path in _tqdm.tqdm(local_ids, desc="Organising content...", unit="release"):
         if folder_path and os.path.isdir(folder_path):
             try:
-                ContentOrganiser(folder_path, interactive=interactive).run()
+                ContentOrganiser(folder_path, interactive=interactive, confirm=confirm).run()
             except Exception as exc:
                 logger.error(f"Error organising {folder_path}: {exc}")
