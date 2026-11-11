@@ -130,6 +130,12 @@ def format_show_folder(recording_data, encora_id, format_string, folder_name=Non
 
 def move_merge(src, dst):
     """Move src to dst. If both are directories, recursively move contents so src merges into dst without nesting."""
+    # Guard: src and dst are the same physical location (e.g. NFD vs NFC on macOS) — nothing to do
+    try:
+        if os.path.realpath(src) == os.path.realpath(dst):
+            return
+    except Exception:
+        pass
     if os.path.islink(src):
         # Don't move symlinks that point back into src or dst ancestors
         try:
