@@ -152,9 +152,10 @@ class ContentOrganiser:
     then executes them.
     """
 
-    def __init__(self, release_path: str, interactive: bool = True):
+    def __init__(self, release_path: str, interactive: bool = True, confirm=None):
         self.release_path = Path(release_path)
         self.interactive   = interactive
+        self.confirm       = confirm
         self.unknown_action = config.unknown_pattern_action  # 'prompt'|'skip'|'log'
         # Pending operations: ('move', src, dst) | ('delete', src) | ('rmdir', path)
         self._ops: list[tuple] = []
