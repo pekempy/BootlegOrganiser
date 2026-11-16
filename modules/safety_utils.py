@@ -9,6 +9,16 @@ logger = logging.getLogger(__name__)
 
 DANGER_ZONE_THRESHOLD_BYTES = 10 * 1024 * 1024  # 10 MiB
 
+_quarantined_items: list[str] = []
+
+
+def reset_quarantine_log() -> None:
+    _quarantined_items.clear()
+
+
+def get_quarantined_items() -> list[str]:
+    return list(_quarantined_items)
+
 
 def get_path_size_bytes(path: str) -> int:
     """Return total bytes on disk under path (file or directory), skipping symlinks."""
@@ -92,6 +102,7 @@ def quarantine_to_danger_zone(
     with open(note_path, 'w', encoding='utf-8') as f:
         f.write(note_content)
 
+    _quarantined_items.append(dest_dir)
     logger.warning(
         f"Quarantined to !danger-zone ({size_mb:.2f} MB): {target_path} → {dest_dir} | {reason}"
     )

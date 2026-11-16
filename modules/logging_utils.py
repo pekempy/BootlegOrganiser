@@ -16,13 +16,9 @@ LOGGER_NAMES = (
 
 @contextmanager
 def run_logging(log_path: str = "organiser-debug.log"):
-    """
-    Configure WARNING+ stderr logging and DEBUG+ file logging for an organiser run,
-    cleanly closing and detaching file handlers when the run exits.
-    """
-    fmt_term = logging.Formatter("  %(levelname)s [%(name)s] %(message)s")
+    """Configure WARNING+ stderr logging and DEBUG+ file logging for an organiser run."""
+    fmt_term = logging.Formatter("\r\033[2K  ║ %(levelname)s [%(name)s] %(message)s")
     fmt_file = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-
     warn_handler = logging.StreamHandler(sys.stderr)
     warn_handler.setLevel(logging.WARNING)
     warn_handler.setFormatter(fmt_term)

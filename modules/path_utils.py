@@ -92,12 +92,21 @@ def walk_library_dirs(main_directory: str, topdown: bool = True):
     """
     Walk main_directory while skipping hidden directories (.), organiser
     control folders (!non-encora, !unmatched, !danger-zone, !processing), and symlinks.
+    Prunes properly in both topdown=True and topdown=False modes.
     """
-    for root, dirs, files in os.walk(main_directory, topdown=topdown):
+    collected = []
+    for root, dirs, files in os.walk(main_directory, topdown=True):
         dirs[:] = [
             d for d in dirs
             if not d.startswith('.')
             and not d.startswith('!')
             and not os.path.islink(os.path.join(root, d))
         ]
-        yield root, dirs, files
+        if topdown:
+            yield root, dirs, files
+        else:
+            collected.append((root, list(dirs), files))
+
+    if not topdown:
+        for item in reversed(collected):
+            yield item

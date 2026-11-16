@@ -10,7 +10,12 @@ from modules.config import config
 from modules.content_utils import ContentOrganiser
 from modules.encora_utils import find_local_encora_ids
 from modules.folder_utils import move_and_rename_folders, move_merge
-from modules.safety_utils import DANGER_ZONE_THRESHOLD_BYTES, safe_delete_directory
+from modules.safety_utils import (
+    DANGER_ZONE_THRESHOLD_BYTES,
+    get_quarantined_items,
+    reset_quarantine_log,
+    safe_delete_directory,
+)
 from modules.unmatched_utils import move_unmatched_items
 
 class TestDeletionSafetyAndUnmatched(unittest.TestCase):
@@ -150,6 +155,10 @@ class TestDeletionSafetyAndUnmatched(unittest.TestCase):
             ne_dir = root / "!non-encora" / "Concert {ne} {e-888}"
             ne_dir.mkdir(parents=True)
             (ne_dir / "concert.mp4").write_bytes(b"concert")
+            empty_ne_sub = ne_dir / "EmptySubInNonEncora"
+            empty_ne_sub.mkdir()
+            empty_show = root / "Guys and Dolls" / "Bridge Theatre"
+            empty_show.mkdir(parents=True)
 
             unmatched_folder = str(root / "!unmatched")
             moved = move_unmatched_items(
@@ -159,6 +168,7 @@ class TestDeletionSafetyAndUnmatched(unittest.TestCase):
             )
 
             self.assertEqual(len(moved), 3)
+            self.assertFalse((root / "!unmatched" / "Guys and Dolls").exists())
             # Matched release & non-encora untouched
             self.assertTrue((matched_dir / "show.mp4").exists())
             self.assertTrue((ne_dir / "concert.mp4").exists())
@@ -174,6 +184,8 @@ class TestDeletionSafetyAndUnmatched(unittest.TestCase):
             delete_empty_directories(str(root))
             self.assertTrue((root / "!unmatched").exists())
             self.assertTrue((root / "!non-encora").exists())
+            self.assertTrue(empty_ne_sub.exists())
+            self.assertFalse(empty_show.exists())
 
     def test_run_organiser_end_to_end_and_api_outage_guard(self):
         import importlib
@@ -269,6 +281,7 @@ class TestDeletionSafetyAndUnmatched(unittest.TestCase):
                 os.chdir(orig_cwd)
 
     def test_large_folder_delete_quarantines_to_danger_zone_with_reason_file(self):
+        reset_quarantine_log()
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             at_risk = root / "!processing"
@@ -277,6 +290,7 @@ class TestDeletionSafetyAndUnmatched(unittest.TestCase):
             big_file.write_bytes(b"\0" * (DANGER_ZONE_THRESHOLD_BYTES + 1024))
 
             clean_processing_folder(str(root))
+            self.assertEqual(len(get_quarantined_items()), 1)
 
             self.assertFalse(at_risk.exists())
             quarantined = root / "!danger-zone" / "!processing"

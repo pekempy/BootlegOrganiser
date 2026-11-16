@@ -9,11 +9,20 @@ logger = logging.getLogger(__name__)
 
 _SYSTEM_JUNK_FILES = {'.ds_store', '.localized', 'thumbs.db', 'desktop.ini'}
 
-
 def _is_system_junk(filename: str) -> bool:
     low = filename.lower()
     return low in _SYSTEM_JUNK_FILES or low.startswith('._')
 
+
+def _has_real_files(dirpath: str) -> bool:
+    """Return True if dirpath contains at least one non-junk file anywhere beneath it."""
+    for root, dirs, files in os.walk(dirpath):
+        dirs[:] = [d for d in dirs if not d.startswith('.') and not os.path.islink(os.path.join(root, d))]
+        for fn in files:
+            if fn.startswith('.') or _is_system_junk(fn):
+                continue
+            return True
+    return False
 
 def _path_identity(path: str) -> tuple:
     """
@@ -83,6 +92,9 @@ def move_unmatched_items(
                 continue
             if dir_id in protected_ancestors:
                 kept_dirs.append(d)
+                continue
+            # Never move empty folders into !unmatched — let empty-dir cleanup handle them
+            if not _has_real_files(full_d):
                 continue
 
             rel_path = unicodedata.normalize('NFC', os.path.relpath(full_d, main_directory))
