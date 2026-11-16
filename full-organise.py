@@ -1,51 +1,53 @@
-import os
-import sys
-import io
-import re
 import argparse
-from contextlib import redirect_stdout, redirect_stderr
+import io
 import logging
+import os
+import re
+import sys
+from contextlib import redirect_stderr, redirect_stdout
 
-
+from modules.cast_utils import create_cast_files, create_encora_id_files
+from modules.cleanup_utils import delete_empty_directories
+from modules.collection_utils import compare_local_encora_ids
 from modules.config import config
-from modules.cleanup_processing import clean_processing_folder, delete_empty_directories
-from modules.collection_checker import compare_local_encora_ids
-from modules.download_subtitles import download_subtitles_for_folders
-from modules.non_encora_processing import move_folders_with_ne
-from modules.encora_id_processing import fetch_collection, find_local_encora_ids, process_encora_ids
-from modules.cast_file_generator import create_cast_files, create_encora_id_files
-try:
-    from modules.checksum_generator import create_checksum_files, verify_all_checksums
-    _CHECKSUM_AVAILABLE = True
-except ImportError:
-    _CHECKSUM_AVAILABLE = False
-    def create_checksum_files(*a, **kw): pass
-    def verify_all_checksums(*a, **kw): return 0, 0
-from modules.move_and_rename_folders import move_folders_to_processing, move_and_rename_folders
-from modules.manage_file_sizes import process_directory, send_format
+from modules.content_utils import organise_all_releases
 from modules.diff_utils import clear_diff_files, log_missing_smalls
-from modules.content_organiser import organise_all_releases
+from modules.encora_utils import fetch_collection, find_local_encora_ids, process_encora_ids
+from modules.folder_utils import move_and_rename_folders
+from modules.format_utils import process_directory, send_format
+from modules.logging_utils import run_logging
+from modules.non_encora_utils import move_folders_with_ne
+from modules.subtitle_utils import download_subtitles_for_folders
+from modules.unmatched_utils import move_unmatched_items
+
+try:
+    from modules.checksum_utils import create_checksum_files, verify_all_checksums
+except ImportError:
+    def create_checksum_files(*a, **kw):
+        pass
+
+    def verify_all_checksums(*a, **kw):
+        return 0, 0
 
 # ── Terminal helpers ──────────────────────────────────────────────────────────
-# Windows 10+ supports ANSI natively; this enables VT processing on older builds
 if sys.platform == "win32":
     os.system("")
 
-_G  = "\033[38;5;48m\033[1m"   # green
-_R  = "\033[38;5;196m\033[1m"  # red
-_DM = "\033[38;5;245m"         # dim grey
-_SH = "\033[38;5;255m\033[1m"  # white bold
+_G = "\033[38;5;48m\033[1m"
+_R = "\033[38;5;196m\033[1m"
+_DM = "\033[38;5;245m"
+_SH = "\033[38;5;255m\033[1m"
 _RS = "\033[0m"
-_CL = "\r\033[2K"              # clear current line
+_CL = "\r\033[2K"
+
+_logger = logging.getLogger("modules.encora_utils")
 
 
 def _spin(msg: str) -> None:
-    """Print a transient 'running' indicator that _done() will overwrite."""
     print(f"  {_DM}·  {msg}…{_RS}", end="\r", flush=True)
 
 
-def _done(label: str, summary: str, details: list = None, warn: bool = False) -> None:
-    """Overwrite the spinner line with a compact completion summary."""
+def _done(label: str, summary: str, details: list | None = None, warn: bool = False) -> None:
     icon = f"{_R}✕{_RS}" if warn else f"{_G}✓{_RS}"
     print(f"{_CL}  {icon}  {_SH}{label:<18}{_RS}  {summary}")
     if details:
@@ -54,21 +56,19 @@ def _done(label: str, summary: str, details: list = None, warn: bool = False) ->
 
 
 def _quiet(fn, *args, **kwargs):
-    """Run fn, suppressing all stdout/stderr. Returns the result."""
     with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
         return fn(*args, **kwargs)
 
 
 def _capture(fn, *args, **kwargs):
-    """Run fn silently. Returns (result, captured_text)."""
     buf = io.StringIO()
     with redirect_stdout(buf), redirect_stderr(buf):
         result = fn(*args, **kwargs)
     return result, buf.getvalue()
 
+
 # ── Safe-mode confirmation ─────────────────────────────────────────────────────
 def _write_tty(msg: str) -> None:
-    """Write directly to the controlling terminal, bypassing _quiet() redirects."""
     try:
         with open('/dev/tty', 'w') as tty:
             tty.write(msg)
@@ -79,7 +79,6 @@ def _write_tty(msg: str) -> None:
 
 
 def _read_tty() -> str:
-    """Read one line from the controlling terminal."""
     try:
         with open('/dev/tty') as tty:
             return tty.readline().strip().lower()
@@ -88,12 +87,8 @@ def _read_tty() -> str:
 
 
 class _SafeConfirm:
-    """
-    Callable passed to destructive operations when --safe is active.
-    Writes the pending action to /dev/tty and waits for y/n/a/q.
-    Tracks an approve-all flag so the user can say 'a' once and move on.
-    Every decision (approved / skipped) is also written to organiser-debug.log.
-    """
+    """Interactive confirmation gate for destructive operations when --safe is active."""
+
     _log = logging.getLogger("organiser.safe")
 
     def __init__(self):
@@ -122,162 +117,204 @@ class _SafeConfirm:
         return approved
 
 
+def _run_resilient(label: str, fn, *args, default=None, **kwargs):
+    """Run an organiser step without crashing the entire pipeline on unexpected errors."""
+    try:
+        return fn(*args, **kwargs)
+    except SystemExit:
+        raise
+    except Exception as exc:
+        _logger.error(f"Step '{label}' failed: {exc}", exc_info=True)
+        _done(label, f"error: {exc}", warn=True)
+        return default
+
 
 # ── Organiser ─────────────────────────────────────────────────────────────────
-def run_organiser(interactive: bool = True, safe: bool = False):
+def run_organiser(interactive: bool = True, safe: bool = False) -> None:
     confirm = _SafeConfirm() if safe else None
 
     main_directory = config.main_directory
-    if main_directory is None:
-        print(f"{_R}Error:{_RS} BOOTLEG_MAIN_DIRECTORY not set in config.")
+    if not main_directory or not os.path.isdir(main_directory):
+        print(f"{_R}Error:{_RS} BOOTLEG_MAIN_DIRECTORY is not set or does not exist: {main_directory}")
         return
 
-    # Disable tqdm globally — clean output comes from _done() summaries
     os.environ["TQDM_DISABLE"] = "1"
 
-    # Logging setup:
-    #   WARNING+ → stderr (visible in terminal, bypasses _quiet() redirects)
-    #   DEBUG+   → organiser-debug.log (full trace for post-run diagnosis)
-    # propagate=False prevents DEBUG from leaking to the root logger / terminal.
-    _fmt_term = logging.Formatter("  %(levelname)s [%(name)s] %(message)s")
-    _fmt_file = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
+    with run_logging("organiser-debug.log"):
+        _quiet(clear_diff_files)
 
-    _warn_handler = logging.StreamHandler(sys.stderr)
-    _warn_handler.setLevel(logging.WARNING)
-    _warn_handler.setFormatter(_fmt_term)
+        # ── Non-Encora folders ────────────────────────────────────────────────
+        _spin("Checking non-Encora folders")
+        non_encora_folder = os.path.join(main_directory, '!non-encora')
+        _, txt = _run_resilient(
+            "Non-Encora",
+            _capture,
+            move_folders_with_ne,
+            main_directory,
+            non_encora_folder,
+            default=(None, ""),
+        )
+        n_moved = len([l for l in txt.splitlines() if "Moved" in l])
+        _done("Non-Encora", f"{n_moved} folder{'s' if n_moved != 1 else ''} moved" if n_moved else "none to process")
 
-    _dbg_handler = logging.FileHandler("organiser-debug.log", mode="w", encoding="utf-8")
-    _dbg_handler.setLevel(logging.DEBUG)
-    _dbg_handler.setFormatter(_fmt_file)
+        # ── Fetch collection ──────────────────────────────────────────────────
+        _spin("Fetching collection from Encora")
+        local_ids = _quiet(find_local_encora_ids, main_directory)
+        encora_data = _quiet(fetch_collection)
+        fetch_complete = getattr(fetch_collection, "last_complete", None)
+        if not isinstance(fetch_complete, bool):
+            fetch_complete = bool(encora_data)
+        recording_data = _quiet(process_encora_ids, encora_data, local_ids)
+        _done("Collection", f"{len(recording_data)} recordings matched")
 
-    for _mod in ("modules.content_organiser", "modules.cleanup_processing", "organiser.safe"):
-        _lg = logging.getLogger(_mod)
-        _lg.handlers.clear()
-        _lg.addHandler(_warn_handler)
-        _lg.addHandler(_dbg_handler)
-        _lg.setLevel(logging.DEBUG)
-        _lg.propagate = False  # keep DEBUG out of root logger / terminal
+        # ── Cast files ────────────────────────────────────────────────────────
+        if config.generate_cast_files:
+            _spin("Generating cast files")
+            res = _run_resilient("Cast files", _capture, create_cast_files, recording_data)
+            if res is not None:
+                _, txt = res
+                m = re.search(r"Updated Cast\.txt for (\d+)", txt)
+                _done("Cast files", f"{m.group(1)} updated" if m else "all up to date")
 
-    _quiet(clear_diff_files)
+        # ── Encora ID files ───────────────────────────────────────────────────
+        if config.generate_encoraid_files:
+            _spin("Generating Encora ID files")
+            if _run_resilient("Encora IDs", _quiet, create_encora_id_files, recording_data) is not None or True:
+                _done("Encora IDs", f"{len(recording_data)} up to date")
 
-    # ── Non-Encora folders ────────────────────────────────────────────────────
-    _spin("Checking non-Encora folders")
-    non_encora_folder = os.path.join(main_directory, '!non-encora')
-    _, txt = _capture(move_folders_with_ne, main_directory, non_encora_folder)
-    n_moved = len([l for l in txt.splitlines() if "Moved" in l])
-    _done("Non-Encora", f"{n_moved} folder{'s' if n_moved != 1 else ''} moved" if n_moved else "none to process")
+        # ── Move & rename ─────────────────────────────────────────────────────
+        _spin("Moving & renaming folders")
+        _run_resilient("Folders", _quiet, move_and_rename_folders, recording_data, main_directory, confirm=confirm)
+        _done("Folders", "renamed & organised")
 
-    # ── Fetch collection ──────────────────────────────────────────────────────
-    _spin("Fetching collection from Encora")
-    local_ids  = _quiet(find_local_encora_ids, main_directory)
-    encora_data = _quiet(fetch_collection)
-    recording_data = _quiet(process_encora_ids, encora_data, local_ids)
-    _done("Collection", f"{len(recording_data)} recordings matched")
-
-    # ── Cast files ────────────────────────────────────────────────────────────
-    if config.generate_cast_files:
-        _spin("Generating cast files")
-        _, txt = _capture(create_cast_files, recording_data)
-        m = re.search(r"Updated Cast\.txt for (\d+)", txt)
-        _done("Cast files", f"{m.group(1)} updated" if m else "all up to date")
-
-    # ── Encora ID files ───────────────────────────────────────────────────────
-    if config.generate_encoraid_files:
-        _spin("Generating Encora ID files")
-        _quiet(create_encora_id_files, recording_data)
-        _done("Encora IDs", f"{len(recording_data)} up to date")
-
-    # ── Move & rename ─────────────────────────────────────────────────────────
-    _spin("Moving & renaming folders")
-    _quiet(move_and_rename_folders, recording_data, main_directory, confirm=confirm)
-    _done("Folders", "renamed & organised")
-
-    # ── Organise content ──────────────────────────────────────────────────────
-    if config.organise_content:
-        _spin("Organising release content")
-        updated_local_ids = _quiet(find_local_encora_ids, main_directory)
-        _quiet(organise_all_releases, updated_local_ids, interactive=False, confirm=confirm)
-        _done("Content", f"{len(updated_local_ids)} releases organised")
-
-    _quiet(delete_empty_directories, main_directory, confirm=confirm)
-
-    # ── File sizes & formats ──────────────────────────────────────────────────
-    _spin("Checking formats")
-    final_local_ids = _quiet(find_local_encora_ids, main_directory)
-    updated_formats_count = 0
-    for encora_id, folder_path in final_local_ids:
-        if config.exclude_format_update and str(encora_id) in config.excluded_ids:
-            continue
-        summary = process_directory(folder_path)
-        if summary:
-            if "VOB (no smalls)" in summary:
-                match = next((x for x in recording_data if str(x['encora_id']) == str(encora_id)), None)
-                if match:
-                    rd = match.get('recording_data', {})
-                    log_missing_smalls(
-                        encora_id,
-                        rd.get('show', 'Unknown Show'),
-                        rd.get('tour', 'Unknown Tour'),
-                        rd.get('date', {}).get('full_date', 'Unknown Date'),
-                        rd.get('master', 'Unknown Master'),
-                    )
-            if config.update_encora_format and send_format(recording_data, encora_id, summary):
-                updated_formats_count += 1
-    _done("Formats", f"{updated_formats_count} updated" if updated_formats_count else "all up to date")
-
-    # ── Checksum manifests ────────────────────────────────────────────────────
-    if config.generate_checksums:
-        _spin("Generating checksum manifests")
-        final_local_ids2    = _quiet(find_local_encora_ids, main_directory)
-        final_recording_data = _quiet(process_encora_ids, encora_data, final_local_ids2)
-        _, txt = _capture(create_checksum_files, final_recording_data)
-        m = re.search(r"Updated checksum manifests for (\d+)", txt)
-        _done("Checksums", f"{m.group(1)} updated" if m else "all up to date")
-
-    # ── Subtitles ─────────────────────────────────────────────────────────────
-    if config.redownload_subtitles:
-        _spin("Checking subtitles")
-        result = _quiet(download_subtitles_for_folders, main_directory, recording_data)
-        n_dl, dl_folders = result if result else (0, [])
-        if n_dl:
-            _done("Subtitles", f"{n_dl} downloaded", details=dl_folders)
+        # ── Unmatched local files/folders ─────────────────────────────────────
+        if fetch_complete or not local_ids:
+            _spin("Checking unmatched items")
+            unmatched_folder = os.path.join(main_directory, '!unmatched')
+            matched_id_set = {str(x['encora_id']) for x in recording_data}
+            updated_matched = [
+                {'encora_id': eid, 'path': p}
+                for eid, p in _quiet(find_local_encora_ids, main_directory)
+                if str(eid) in matched_id_set
+            ]
+            moved_unmatched = _run_resilient(
+                "Unmatched",
+                _quiet,
+                move_unmatched_items,
+                main_directory,
+                unmatched_folder,
+                updated_matched,
+                confirm=confirm,
+                default=[],
+            )
+            n_unmatched = len(moved_unmatched) if moved_unmatched else 0
+            _done(
+                "Unmatched",
+                f"{n_unmatched} item{'s' if n_unmatched != 1 else ''} moved to !unmatched" if n_unmatched else "none to process",
+            )
         else:
-            _done("Subtitles", "all up to date")
+            _done("Unmatched", "skipped (Encora collection unavailable)", warn=True)
 
-    # ── Collection check ──────────────────────────────────────────────────────
-    _spin("Checking collection")
-    missing_ids, extra_ids = _quiet(compare_local_encora_ids, local_ids, encora_data)
-    n_miss  = len(missing_ids)  if missing_ids  else 0
-    n_extra = len(extra_ids)    if extra_ids    else 0
-    if n_miss or n_extra:
-        parts = []
-        if n_miss:  parts.append(f"{n_miss} on Encora but not local")
-        if n_extra: parts.append(f"{n_extra} local but not on Encora")
-        _done("Collection", "  ·  ".join(parts), warn=bool(n_miss))
-        if missing_ids:
-            with open('on_encora_not_local.txt', 'w') as f:
-                f.write('Missing IDs locally:\n')
-                for eid in missing_ids:
-                    f.write(f"{eid}\n")
-    else:
-        _done("Collection", "in sync")
+        # ── Organise content ──────────────────────────────────────────────────
+        if config.organise_content:
+            _spin("Organising release content")
+            updated_local_ids = _quiet(find_local_encora_ids, main_directory)
+            _run_resilient(
+                "Content",
+                _quiet,
+                organise_all_releases,
+                updated_local_ids,
+                interactive=False,
+                confirm=confirm,
+            )
+            _done("Content", f"{len(updated_local_ids)} releases organised")
 
-    print()
+        _run_resilient("Cleanup", _quiet, delete_empty_directories, main_directory, confirm=confirm)
 
+        # ── File sizes & formats ──────────────────────────────────────────────
+        _spin("Checking formats")
+        final_local_ids = _quiet(find_local_encora_ids, main_directory)
+        updated_formats_count = 0
+        for encora_id, folder_path in final_local_ids:
+            if config.exclude_format_update and str(encora_id) in config.excluded_ids:
+                continue
+            try:
+                summary = process_directory(folder_path)
+            except OSError as exc:
+                _logger.warning(f"Format evaluation failed for {folder_path}: {exc}")
+                continue
+            if summary:
+                if "VOB (no smalls)" in summary:
+                    match = next((x for x in recording_data if str(x['encora_id']) == str(encora_id)), None)
+                    if match:
+                        rd = match.get('recording_data', {})
+                        log_missing_smalls(
+                            encora_id,
+                            rd.get('show', 'Unknown Show'),
+                            rd.get('tour', 'Unknown Tour'),
+                            rd.get('date', {}).get('full_date', 'Unknown Date'),
+                            rd.get('master', 'Unknown Master'),
+                        )
+                if config.update_encora_format and send_format(recording_data, encora_id, summary):
+                    updated_formats_count += 1
+        _done("Formats", f"{updated_formats_count} updated" if updated_formats_count else "all up to date")
 
-# ── Entry point ───────────────────────────────────────────────────────────────
-def section(title):
-    """Legacy stub kept for any external callers; no-op in clean mode."""
-    pass
+        # ── Checksum manifests ────────────────────────────────────────────────
+        if config.generate_checksums:
+            _spin("Generating checksum manifests")
+            final_local_ids2 = _quiet(find_local_encora_ids, main_directory)
+            final_recording_data = _quiet(process_encora_ids, encora_data, final_local_ids2)
+            res = _run_resilient("Checksums", _capture, create_checksum_files, final_recording_data)
+            if res is not None:
+                _, txt = res
+                m = re.search(r"Updated checksum manifests for (\d+)", txt)
+                _done("Checksums", f"{m.group(1)} updated" if m else "all up to date")
+
+        # ── Subtitles ─────────────────────────────────────────────────────────
+        if config.redownload_subtitles:
+            _spin("Checking subtitles")
+            result = _run_resilient(
+                "Subtitles",
+                _quiet,
+                download_subtitles_for_folders,
+                main_directory,
+                recording_data,
+                default=(0, []),
+            )
+            n_dl, dl_folders = result if result else (0, [])
+            if n_dl:
+                _done("Subtitles", f"{n_dl} downloaded", details=dl_folders)
+            else:
+                _done("Subtitles", "all up to date")
+
+        # ── Collection check ──────────────────────────────────────────────────
+        _spin("Checking collection")
+        missing_ids, extra_ids = _quiet(compare_local_encora_ids, local_ids, encora_data)
+        n_miss = len(missing_ids) if missing_ids else 0
+        n_extra = len(extra_ids) if extra_ids else 0
+        if n_miss or n_extra:
+            parts = []
+            if n_miss:
+                parts.append(f"{n_miss} on Encora but not local")
+            if n_extra:
+                parts.append(f"{n_extra} local but not on Encora")
+            _done("Collection", "  ·  ".join(parts), warn=bool(n_miss))
+            if missing_ids:
+                with open('on_encora_not_local.txt', 'w', encoding='utf-8') as f:
+                    f.write('Missing IDs locally:\n')
+                    for eid in missing_ids:
+                        f.write(f"{eid}\n")
+        else:
+            _done("Collection", "in sync")
+
+        print()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Bootleg Organiser")
     parser.add_argument("--auto", action="store_true", help="Run without GUI")
-    parser.add_argument("--safe", action="store_true",
-                        help="Pause and confirm before every move or delete")
-    parser.add_argument("--verify-checksums", action="store_true",
-                        help="Re-hash and verify all stored checksum manifests, then exit")
+    parser.add_argument("--safe", action="store_true", help="Pause and confirm before every move or delete")
+    parser.add_argument("--verify-checksums", action="store_true", help="Re-hash and verify all stored checksum manifests, then exit")
     args = parser.parse_args()
 
     if args.verify_checksums:

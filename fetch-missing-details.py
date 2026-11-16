@@ -1,29 +1,19 @@
-import os
-import requests
 import csv
-from dotenv import load_dotenv
-from modules.api_utils import authenticated_request
+import os
 
-# Load environment variables from .env
-load_dotenv()
+from modules.api_utils import authenticated_request, build_api_session
 
-# Get the API key from .env
-api_key = os.getenv('ENCORA_API_KEY')
 base_url = "https://encora.it/api/recording"
 
-def fetch_recording_details(encora_id):
+
+def fetch_recording_details(encora_id, session=None):
     """Fetch recording details from the Encora API."""
-    headers = {
-        'Authorization': f'Bearer {api_key}',
-        'User-Agent': 'BootOrganiser'
-    }
     try:
-        response = authenticated_request('GET', f"{base_url}/{encora_id}", headers=headers)
+        response = authenticated_request('GET', f"{base_url}/{encora_id}", session=session)
         return response.json()
     except Exception as e:
         print(f"Error fetching details for Encora ID {encora_id}: {e}")
         return None
-
 def parse_recording_details(recording_data):
     """Extract relevant details from the recording data."""
     if not recording_data:
@@ -72,14 +62,13 @@ def process_ids(file_path, output_file):
         ids = [line.strip().split('/')[-1] for line in f if line.strip()]
 
     details = []
-    for encora_id in ids:
-        print(f"Fetching details for Encora ID: {encora_id}")
-        recording_data = fetch_recording_details(encora_id)
-        parsed_details = parse_recording_details(recording_data)
-        if parsed_details:
-            details.append(parsed_details)
-
-    # Write the details to the output CSV file
+    with build_api_session() as session:
+        for encora_id in ids:
+            print(f"Fetching details for Encora ID: {encora_id}")
+            recording_data = fetch_recording_details(encora_id, session=session)
+            parsed_details = parse_recording_details(recording_data)
+            if parsed_details:
+                details.append(parsed_details)
     if details:
         with open(output_file, 'w', encoding='utf-8', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=['encora_id', 'show_name', 'tour_name', 'date', 'master', 'nft_status', 'cast', 'encora_link'])

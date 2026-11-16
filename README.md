@@ -22,6 +22,11 @@ Run the script with the `--auto` flag to skip the GUI and run immediately using 
 python3 full-organise.py --auto
 ```
 *This is ideal for scheduled tasks, batch jobs, or headless server environments.*
+### Safe Mode (--safe)
+Run with `--safe` (or `--auto --safe`) to pause and confirm every move or delete interactively while writing a full operation trace to `organiser-debug.log`:
+```bash
+python3 full-organise.py --auto --safe
+```
 
 ### Verifying Checksums (--verify-checksums)
 Run with `--verify-checksums` to re-hash every file covered by a `Checksums.b2` manifest and report any mismatches, then exit (no GUI, no Encora fetch):
@@ -63,9 +68,8 @@ The organiser is highly customisable via the GUI (saved to `.env`).
 - **Space Guard**: The organiser automatically prevents multiple consecutive spaces in names, keeping your file system tidy even if a tag is empty.
 - **ID Detection**: It detects Encora IDs regardless of your naming style (supports `{e-123}`, `[e-123]`, `(e-123)`, or raw `e-123`).
 - **Flexible Sorting**: Supports removing sorting articles (The/A/An) for folder structures.
-- **Processing Safety**: Folders are moved to a `!processing` queue during organisation to prevent data loss in case of hardware failure or crashes.
+- **Processing Safety**: Non-Encora `{ne}` folders move to `!non-encora`, unmatched local items move safely to `!unmatched` (skipped automatically if the Encora collection fetch fails or is incomplete), and any folder or file over 10 MB targeted for deletion is quarantined to `!danger-zone` with a `DANGER_ZONE_REASON.txt` explanation rather than deleted.
 - **Checksums**: See [Checksums](#checksums) below.
-
 
 ## Checksums
 

@@ -7,4 +7,8 @@ local_not_on_encora_details.csv
 cast_diffs.txt
 subtitle_diffs.txt
 missing_smalls.txt
-
+organiser-debug.log
+unrecognised_patterns.txt
+__pycache__/
+.venv/
+
