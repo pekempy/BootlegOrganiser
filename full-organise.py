@@ -227,16 +227,19 @@ def run_organiser(interactive: bool = True, safe: bool = False) -> None:
         if config.organise_content:
             _spin("Organising files inside releases")
             updated_local_ids = _quiet(find_local_encora_ids, main_directory)
-            _run_resilient(
+            organised_count = _run_resilient(
                 "Release Files",
                 _quiet,
                 organise_all_releases,
                 updated_local_ids,
                 interactive=False,
                 confirm=confirm,
+                default=0,
             )
-            _done("Release Files", f"{len(updated_local_ids)} recordings organised")
-
+            _done(
+                "Release Files",
+                f"{organised_count} recording{'s' if organised_count != 1 else ''} organised" if organised_count else "up to date",
+            )
         _run_resilient("Cleanup", _quiet, delete_empty_directories, main_directory, confirm=confirm)
 
         quarantined = get_quarantined_items()

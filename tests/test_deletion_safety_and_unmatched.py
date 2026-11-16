@@ -7,7 +7,7 @@ from unittest.mock import patch
 from modules.api_utils import authenticated_request, build_api_session
 from modules.cleanup_utils import clean_processing_folder, delete_empty_directories
 from modules.config import config
-from modules.content_utils import ContentOrganiser
+from modules.content_utils import ContentOrganiser, organise_all_releases
 from modules.encora_utils import find_local_encora_ids
 from modules.folder_utils import move_and_rename_folders, move_merge
 from modules.safety_utils import (
@@ -124,7 +124,9 @@ class TestDeletionSafetyAndUnmatched(unittest.TestCase):
                 # When delete_junk_files is False, even .DS_Store / .tmp stays
                 (rel / "temp.tmp").write_bytes(b"tmp")
                 with patch.object(type(config), "delete_junk_files", property(lambda self: False)):
-                    ContentOrganiser(str(rel), interactive=False).run()
+                    changed = ContentOrganiser(str(rel), interactive=False).run()
+                    self.assertFalse(changed)
+                    self.assertEqual(organise_all_releases([("777", str(rel))], interactive=False), 0)
                 self.assertTrue((rel / "temp.tmp").exists())
             finally:
                 os.chdir(orig_cwd)

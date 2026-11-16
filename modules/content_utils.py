@@ -42,7 +42,7 @@ class ContentOrganiser:
         self._unknowns: list[Path] = []
         self._loose_audio: list[Path] = []
 
-    def run(self) -> None:
+    def run(self) -> bool:
         inv = self._scan()
 
         self._fix_metadata_locations()
@@ -64,9 +64,9 @@ class ContentOrganiser:
         if self._unknowns:
             self._handle_unknowns()
 
-        self._execute()
-        self._clean_empty_subdirs()
-
+        changed = self._execute()
+        cleaned = self._clean_empty_subdirs()
+        return changed or cleaned
     def _scan(self) -> dict:
         inv: dict[str, list] = {
             'audio': [], 'video': [], 'mts': [], 'vobs': [],
@@ -390,7 +390,8 @@ class ContentOrganiser:
                 for fp in self._loose_audio:
                     fh.write(f"  {fp}\n")
 
-    def _execute(self) -> None:
+    def _execute(self) -> bool:
+        changed = False
         _log = logger.info if self.confirm is not None else logger.debug
 
         if self.confirm is not None and self._ops:
@@ -410,8 +411,7 @@ class ContentOrganiser:
             if len(lines) > 25:
                 preview += f"\n    … and {len(lines) - 25} more"
             if not self.confirm(f"Organise release folder: {self.release_path.name}\n{preview}"):
-                return
-
+                return False
         main_dir = config.main_directory or str(self.release_path.parent)
 
         for op in self._ops:
@@ -421,7 +421,7 @@ class ContentOrganiser:
                     if p.exists():
                         if safe_delete_file(str(p), main_dir, reason=f"ContentOrganiser cleanup inside {self.release_path.name}"):
                             _log(f"Handled delete/quarantine for {p}")
-
+                            changed = True
                 elif op[0] == 'move':
                     src, dst = Path(op[1]), Path(op[2])
                     if not src.exists():
@@ -439,6 +439,7 @@ class ContentOrganiser:
                             src.rename(tmp)
                             tmp.rename(dst)
                             _log(f"Renamed {src} → {dst}")
+                            changed = True
                         continue
                     if dst.exists():
                         logger.warning(f"Skipping move {src} → {dst}: destination already exists")
@@ -446,19 +447,22 @@ class ContentOrganiser:
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(src), str(dst))
                     _log(f"Moved {src} → {dst}")
-
+                    changed = True
                 elif op[0] == 'rmdir':
                     p = Path(op[1])
                     if p.exists() and p.is_dir():
-                        safe_delete_directory(
+                        if safe_delete_directory(
                             str(p),
                             main_dir,
                             reason=f"ContentOrganiser folder removal inside {self.release_path.name}",
-                        )
+                        ):
+                            changed = True
             except Exception as exc:
                 logger.error(f"Error in {op}: {exc}")
+        return changed
 
-    def _clean_empty_subdirs(self) -> None:
+    def _clean_empty_subdirs(self) -> bool:
+        cleaned = False
         main_dir = config.main_directory or str(self.release_path.parent)
         for root, dirs, files in os.walk(self.release_path, topdown=False):
             p = Path(root)
@@ -469,19 +473,24 @@ class ContentOrganiser:
             if same:
                 continue
             if not dirs and not files:
-                safe_delete_directory(
+                if safe_delete_directory(
                     str(p),
                     main_dir,
                     reason=f"Empty subdirectory cleanup inside {self.release_path.name}",
-                )
+                ):
+                    cleaned = True
+        return cleaned
 
 
-def organise_all_releases(local_ids: list[tuple], interactive: bool = True, confirm=None) -> None:
+def organise_all_releases(local_ids: list[tuple], interactive: bool = True, confirm=None) -> int:
     import tqdm as _tqdm
 
+    organised_count = 0
     for _, folder_path in _tqdm.tqdm(local_ids, desc="Organising content...", unit="release"):
         if folder_path and os.path.isdir(folder_path):
             try:
-                ContentOrganiser(folder_path, interactive=interactive, confirm=confirm).run()
+                if ContentOrganiser(folder_path, interactive=interactive, confirm=confirm).run():
+                    organised_count += 1
             except Exception as exc:
                 logger.error(f"Error organising {folder_path}: {exc}")
+    return organised_count
